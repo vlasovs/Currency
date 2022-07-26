@@ -56,11 +56,11 @@ void ParseLine(string line, double& start, double& min, double& max, double& fin
 	finish = atof(s.c_str());
 }
 
-void __fastcall loadTests()
+void __fastcall loadTests(int count)
 {
 	tests.clear();
-	vector<double> records;
-	for (int i = 0; i < 105; i++) {
+	vector<double> records;	
+	for (int i = 0; i < count; i++) {
 		records.clear();
 		string s;
 		char buf[100];
@@ -145,15 +145,15 @@ void shuffle(vector<int>& arr) {
 //---------------------------------------------------------------------------
 
 void conjugate_gradient(double dropout, int tcount, int ts)
-{		 
+{
 	int size = 4 * look_back;
 	double Alpha = 1.0 / 3.0;
-	double Step = 0.01;
-	int tt = tests.size();	
+	double Step = 0.001;
+	int tt = tests.size();
 	if (ts > tt) {
 		ts = tt;
 	}
-	double* delta = new double[ts];
+	double* delta = new double[tt];
 	double* enter = new double[4];
 	double* ans = new double[1];
 	for (int t = 0; t < tcount; t++) {
@@ -164,7 +164,7 @@ void conjugate_gradient(double dropout, int tcount, int ts)
 			x[i] = i;
 		}
 		shuffle(x);
-		for (int i = 0; i < ts; i++) {
+		for (int i = 0; i < tt; i++) {
 			int index = x[i];
 			nn->Clear();
 			size = tests[index].size() - 1;
@@ -173,22 +173,22 @@ void conjugate_gradient(double dropout, int tcount, int ts)
 				for (int j = 0; j < 4; j++) {
 					enter[j] = tests[index][k * 4 + j];
 				}
-				nn->Execute(enter, 0);
+				nn->Execute(enter);
 			}
 			ans[0] = tests[index][size];
 			delta[i] = ans[0];
 			delta[i] -= nn->GetAnswer()[0];
-
-			nn->CalcDeltaSigma(delta + i, 0);
-			//nn->CalcNumericalDelta(tests[index],ans,Alpha);
+			nn->ClearDeltaSigma();
+			//nn->Backpropagation(delta + i, nn->ExtractLayer(nn->LayersCount() - 1)->GetEntersCount() - 1, 0);
+			nn->CalcNumericalDelta(tests[index], ans, Alpha);
 			nn->CalcDelta(Alpha);
 			nn->AplyError(Step);
-		}		
-		cout<<NormL2_(delta, ts) << "\n" <<NormC_(delta, ts) << "\n" << (t + 1) << " \n" << " \n";				
+		}
+		cout << NormL2_(delta, tt) << "\n" << NormC_(delta, tt) << "\n" << (t + 1) << " \n" << " \n";
 	}
 	delete[] delta;
 	delete[] enter;
-	delete[] ans;	
+	delete[] ans;
 }
 //---------------------------------------------------------------------------
 
@@ -266,12 +266,13 @@ void Levenberg_Marquardt(double dropout, int Iteration, int tests_)
 				for (int j = 0; j < 4; j++) {
 					enter[j] = tests[index][p * 4 + j];
 				}
-				nn->Execute(enter, 0);
+				nn->Execute(enter);
 			}
 			double r = nn->GetAnswer()[0];
 			ans[i] = tests[index][size] - r;
 			//nn->GetGradient(Jacobi,i*k);
-			nn->CalcDeltaSigma(0, 0, 0);
+			nn->ClearDeltaSigma();
+			nn->Backpropagation(0, nn->ExtractLayer(nn->LayersCount() - 1)->GetEntersCount() - 1, 0, 0);
 			nn->GetGradientWithout(Jacobi, i * k);
 			//nn->GetNumericalGradient(tests[i],Jacobi,i*k);
 		}
@@ -352,9 +353,14 @@ void Levenberg_Marquardt(double dropout, int Iteration, int tests_)
 int main()
 {
 	Init();
-	loadTests();
-	//conjugate_gradient(0, 100, 10);
-	Levenberg_Marquardt(0, 100, 100000);
+	//clearNN();
+	//saveNN();
+	int tc = 105;
+	loadTests(tc);
+	//loadTests(105);
+	conjugate_gradient(0, 10000, tc);
+	//Levenberg_Marquardt(0, 100, 100000);
+	//saveNN();
     std::cout << "Hello World!\n";
 	if (nn) delete nn;
 }

@@ -16,8 +16,9 @@ void SwapDot(wstring& s);
 void SwapComma(string& s);
 void SwapComma(wstring& s);
 
-class Layer {
+	class Layer {
 	public:
+		static const int flag;
 		Layer(void);
 		virtual ~Layer(void);
 		virtual void SetCoeff(double val, int count);
@@ -30,27 +31,31 @@ class Layer {
 		int GetEnterCount(void);
 		int GetNeuronCount(void);
 		int GetExitCount(void);
-		void Fill(int flag,double Amplitude=1.0);
+		void Fill(int flag, double Amplitude = 1.0);
 		double* GetAnswer(void);
-		double* GetDeltaSigma(void);
+		double* GetDeltaSigma(int stage);
 		double* GetDelta(void);
 		virtual void FreeDelta(void);
 		void SetDifference(const double* Delta);
 		void AplyError(double h);
-		void SetEnter(const double* enter,const int count);
-		void SetEnter(const double* enter);
 		string GetName(void);
-		virtual void SetEnterCount(int EnterCount, int NeuronCount, int ExitCount)=0;
-		virtual void Execute(double* Enter, int count)=0;
-		virtual void CalcDeltaSigma(double* ds, int stage, int exit=-1)=0;
-		virtual void GetGradient(double* Gradient, int offset)=0;
-		virtual void CalcDelta(double Alpha)=0;
-		virtual void Clear(void)=0;
-		virtual void ClearDeltaSigma(void)=0;
+		int GetEntersCount(void);
+		//virtual void SetEnter(const double* enter, const int count);
+		virtual void SetEnter(const double* enter);
 		virtual void GetLayerInfo(int& n, int& m, double*& array);
 		virtual void ApplyDropout(double x);
 		virtual int DropCount(void);
-	 	virtual	bool IsDrop(int count);
+		virtual	bool IsDrop(int count);
+		virtual void Clear(void);
+		virtual void ClearDeltaSigma(void) = 0;
+		virtual void SetEnterCount(int EnterCount, int NeuronCount, int ExitCount) = 0;
+		virtual void Execute(double* Enter) = 0;
+		virtual double* Backpropagation(double* ds, int stage, int last_stage, int exit = flag) = 0;
+		virtual void GetGradient(double* Gradient, int offset) = 0;
+		virtual void CalcDelta(double Alpha) = 0;				
+		//virtual int PrevisionCount(void);
+		//virtual void GetPrevisionInfo(double* v, int offset);
+		//virtual void SetPrevisionInfo(double* v, int offset);
 	protected:
 		int EnterCount;
 		int NeuronCount;
@@ -59,49 +64,51 @@ class Layer {
 		double* w;
 		bool* Dropout;
 		double* DeltaW;
-		double* DeltaSigma;
-		double* Enter;
+		//double* DeltaSigma;
+		vector<double*> wDeltaSigma;
+		//double* Enter;
+		vector<double*>  Enters;
 		double* Out;
 		Layer* next;
 		Layer* prev;
 		string name;
 		double pd;
-		int dropcount;
-};
+		int dropcount;		
+	};
 
-class Dense: public Layer{
+	class Dense : public Layer {
 	public:
 		Dense(void);
 		virtual void SetEnterCount(int EnterCount, int NeuronCount, int ExitCount);
-		virtual void Execute(double* Enter, int count);
-		virtual void CalcDeltaSigma(double* ds, int stage, int exit=-1);
+		virtual void Execute(double* Enter);
+		virtual double* Backpropagation(double* ds, int stage, int last_stage, int exit = flag);
 		virtual void GetGradient(double* Gradient, int offset);
-		virtual void CalcDelta(double Alpha);
-		virtual void Clear(void);
+		virtual void CalcDelta(double Alpha);		
 		virtual void ClearDeltaSigma(void);
-};
+	};
 
-class DenseSoftmax: public Dense{
+	class DenseSoftmax : public Dense {
 	public:
 		DenseSoftmax(void);
-		virtual void Execute(double* Enter, int count);
-		virtual void CalcDeltaSigma(double* ds, int stage, int exit=-1);
-};
+		virtual void Execute(double* Enter);
+		virtual double* Backpropagation(double* ds, int stage, int last_stage, int exit = flag);
+	};
 
-class DenseSigmoid: public Dense{
+	class DenseSigmoid : public Dense {
 	public:
 		DenseSigmoid(void);
-		virtual void Execute(double* Enter, int count);
-		virtual void CalcDeltaSigma(double* ds, int stage, int exit=-1);
-};
+		virtual void Execute(double* Enter);
+		virtual double* Backpropagation(double* ds, int stage, int last_stage, int exit = flag);
+	};
 
-class LSTM: public Layer {
+	class LSTM : public Layer {
 	public:
 		LSTM(void);
 		virtual ~LSTM(void);
+		void SetEnter(const double* enter);
 		virtual void SetEnterCount(int EnterCount, int NeuronCount, int ExitCount);
-		virtual void Execute(double* Enter, int count);
-		virtual void CalcDeltaSigma(double* ds, int stage, int exit=-1);
+		virtual void Execute(double* Enter);
+		virtual double* Backpropagation(double* ds, int stage, int last_stage, int exit = flag);
 		virtual void GetGradient(double* Gradient, int offset);
 		virtual void CalcDelta(double Alpha);
 		virtual void Clear(void);
@@ -111,61 +118,93 @@ class LSTM: public Layer {
 		vector<double*> Stack;
 		vector<vector<double*> > Sigma;
 		vector<vector<double*> > DeltaSigmas;
-		vector<vector<double> >  Pipe;
+		vector<vector<double> >  Pipe;		
 		vector<double> Exit;
 		vector<double> C;
-		void NewStage(void);
-};
+		int NewStage(void);
 
-class Embedding: public Layer{
+		double* c1;
+		double* de;
+		double* dc;
+		double* prevf;
+	};
+
+	class Embedding : public Layer {
 	public:
 		Embedding(void);
 		virtual ~Embedding(void);
 		virtual void SetEnterCount(int EnterCount, int NeuronCount, int ExitCount);
-		virtual void Execute(double* Enter, int count);
-		virtual void CalcDeltaSigma(double* ds, int stage, int exit=-1);
+		virtual void Execute(double* Enter);
+		virtual double* Backpropagation(double* ds, int stage, int last_stage, int exit = flag);
 		virtual void GetGradient(double* Gradient, int offset);
-		virtual void CalcDelta(double Alpha);
-		virtual void Clear(void);
+		virtual void CalcDelta(double Alpha);		
 		virtual void ClearDeltaSigma(void);
 		virtual void GetLayerInfo(int& n, int& m, double*& array);
-};
-
-class NN: public Layer {
+	};
+	class Adder : public Dense {
 	public:
-		NN(void);
-		virtual ~NN(void);
-		void Load(string FileName);
+		Adder(void);
+		void SetCount(int Count);
+		void SetOffset(int offset, int count);
+		virtual double* Backpropagation(double* ds, int stage, int last_stage, int exit = flag);
+		double* GetDeltaSigma(int stage);
+	private:
+		int offset;
+		int count;
+	};
+
+	class Flatten : public Layer {
+	public:
+		Flatten(void);
+		virtual ~Flatten(void);
 		virtual void SetCoeff(double val, int count);
 		virtual double GetCoeff(int count);
 		virtual void SetDelta(double val, int count);
 		virtual double GetDelta(int count);
-		void Save(string FileName);
 		int GetCoeffAmount(void);
-		void GetNumericalGradient(const vector<double>& tests, double* Gradient, int offset);
-		void CalcNumericalDelta(const vector<double>& tests, double* r, double Alpha);
 		virtual void SetEnterCount(int EnterCount, int NeuronCount, int ExitCount);
-		virtual void Execute(double* Enter, int count);
-		virtual void CalcDeltaSigma(double* ds, int stage, int exit=-1);
+		virtual void Execute(double* Enter);
+		virtual double* Backpropagation(double* ds, int stage, int last_stage, int exit = flag);
 		virtual void GetGradient(double* Gradient, int offset);
 		virtual void GetGradientWithout(double* Gradient, int offset);
-		virtual void CalcDelta(double Alpha);
+		virtual void CalcDelta(double Alpha);		
 		virtual void Clear(void);
 		virtual void FreeDelta(void);
 		virtual void ClearDeltaSigma(void);
 		virtual void ApplyDropout(double x);
 		virtual int DropCount(void);
 		virtual bool IsDrop(int count);
-		void AdaMax(int n,double beta1,double beta2);
-		void Adam(int n,double beta1,double beta2);
 		void GetInfo(int layer, int& n, int& m, double*& array);
 		void SetDifferenceWithout(double* Delta);
-	private:
+		Layer* ExtractLayer(int i);
+		void AddLayer(Layer* l);
+		int LayersCount(void);
+	protected:
+		Adder a;
 		double* g;
 		double* v;
 		double* m;
 		vector<Layer*> layers;
 		int FindIndex(int& count);
-};
-#endif
+		virtual void Linking(Layer* next, Layer* prev);
+	};
+	
 
+	class NN : public Flatten {
+	public:
+		NN(void);
+		virtual ~NN(void);
+		void Load(string FileName);
+		void Save(string FileName);
+		void GetNumericalGradient(const vector<double>& tests, double* Gradient, int offset);
+		void CalcNumericalDelta(const vector<double>& tests, double* r, double Alpha);
+		virtual void Execute(double* Enter);
+		virtual double* Backpropagation(double* ds, int stage, int last_stage, int exit = flag);
+		void AdaMax(int n, double beta1, double beta2);
+		void Adam(int n, double beta1, double beta2);
+	protected:
+		virtual void Linking(Layer* next, Layer* prev);
+	};
+
+
+#endif
