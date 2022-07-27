@@ -1,5 +1,23 @@
-﻿  ConsoleApplication1.cpp
-D:\Vlasov\!Programs\Visual_Studio\С#\Neuro\WindowsForms_4\WindowsFormsApp4\LSTM_C++\ConsoleApplication1\ConsoleApplication1.cpp(85,21): warning C4018: <: несоответствие типов со знаком и без знака
-D:\Vlasov\!Programs\Visual_Studio\С#\Neuro\WindowsForms_4\WindowsFormsApp4\LSTM_C++\ConsoleApplication1\ConsoleApplication1.cpp(171,22): warning C4018: <: несоответствие типов со знаком и без знака
-D:\Vlasov\!Programs\Visual_Studio\С#\Neuro\WindowsForms_4\WindowsFormsApp4\LSTM_C++\ConsoleApplication1\ConsoleApplication1.cpp(264,22): warning C4018: <: несоответствие типов со знаком и без знака
+﻿  Neuron.cpp
+D:\Vlasov\!Programs\Visual_Studio\С#\Neuro\WindowsForms_4\WindowsFormsApp4\LSTM_C++\ConsoleApplication1\Neuron.cpp(12,9): warning C4068: неизвестная прагма "package"
+D:\Vlasov\!Programs\Visual_Studio\С#\Neuro\WindowsForms_4\WindowsFormsApp4\LSTM_C++\ConsoleApplication1\Neuron.cpp(50,20): warning C4018: <: несоответствие типов со знаком и без знака
+D:\Vlasov\!Programs\Visual_Studio\С#\Neuro\WindowsForms_4\WindowsFormsApp4\LSTM_C++\ConsoleApplication1\Neuron.cpp(57,20): warning C4018: <: несоответствие типов со знаком и без знака
+D:\Vlasov\!Programs\Visual_Studio\С#\Neuro\WindowsForms_4\WindowsFormsApp4\LSTM_C++\ConsoleApplication1\Neuron.cpp(64,20): warning C4018: <: несоответствие типов со знаком и без знака
+D:\Vlasov\!Programs\Visual_Studio\С#\Neuro\WindowsForms_4\WindowsFormsApp4\LSTM_C++\ConsoleApplication1\Neuron.cpp(71,20): warning C4018: <: несоответствие типов со знаком и без знака
+D:\Vlasov\!Programs\Visual_Studio\С#\Neuro\WindowsForms_4\WindowsFormsApp4\LSTM_C++\ConsoleApplication1\Neuron.cpp(381,20): warning C4018: <: несоответствие типов со знаком и без знака
+D:\Vlasov\!Programs\Visual_Studio\С#\Neuro\WindowsForms_4\WindowsFormsApp4\LSTM_C++\ConsoleApplication1\Neuron.cpp(413,23): warning C4018: <: несоответствие типов со знаком и без знака
+D:\Vlasov\!Programs\Visual_Studio\С#\Neuro\WindowsForms_4\WindowsFormsApp4\LSTM_C++\ConsoleApplication1\Neuron.cpp(422,22): warning C4018: <: несоответствие типов со знаком и без знака
+D:\Vlasov\!Programs\Visual_Studio\С#\Neuro\WindowsForms_4\WindowsFormsApp4\LSTM_C++\ConsoleApplication1\Neuron.cpp(433,20): warning C4018: <: несоответствие типов со знаком и без знака
+D:\Vlasov\!Programs\Visual_Studio\С#\Neuro\WindowsForms_4\WindowsFormsApp4\LSTM_C++\ConsoleApplication1\Neuron.cpp(864,21): warning C4018: <: несоответствие типов со знаком и без знака
+D:\Vlasov\!Programs\Visual_Studio\С#\Neuro\WindowsForms_4\WindowsFormsApp4\LSTM_C++\ConsoleApplication1\Neuron.cpp(903,6): warning C4101: index: неиспользованная локальная переменная
+D:\Vlasov\!Programs\Visual_Studio\С#\Neuro\WindowsForms_4\WindowsFormsApp4\LSTM_C++\ConsoleApplication1\Neuron.cpp(919,21): warning C4018: <: несоответствие типов со знаком и без знака
+D:\Vlasov\!Programs\Visual_Studio\С#\Neuro\WindowsForms_4\WindowsFormsApp4\LSTM_C++\ConsoleApplication1\Neuron.cpp(983,21): warning C4018: <: несоответствие типов со знаком и без знака
+D:\Vlasov\!Programs\Visual_Studio\С#\Neuro\WindowsForms_4\WindowsFormsApp4\LSTM_C++\ConsoleApplication1\Neuron.cpp(995,21): warning C4018: <: несоответствие типов со знаком и без знака
+D:\Vlasov\!Programs\Visual_Studio\С#\Neuro\WindowsForms_4\WindowsFormsApp4\LSTM_C++\ConsoleApplication1\Neuron.cpp(1006,21): warning C4018: <: несоответствие типов со знаком и без знака
+D:\Vlasov\!Programs\Visual_Studio\С#\Neuro\WindowsForms_4\WindowsFormsApp4\LSTM_C++\ConsoleApplication1\Neuron.cpp(1118,20): warning C4018: <: несоответствие типов со знаком и без знака
+D:\Vlasov\!Programs\Visual_Studio\С#\Neuro\WindowsForms_4\WindowsFormsApp4\LSTM_C++\ConsoleApplication1\Neuron.cpp(1147,20): warning C4018: <: несоответствие типов со знаком и без знака
+D:\Vlasov\!Programs\Visual_Studio\С#\Neuro\WindowsForms_4\WindowsFormsApp4\LSTM_C++\ConsoleApplication1\Neuron.cpp(1182,10): warning C4101: tmp: неиспользованная локальная переменная
+D:\Vlasov\!Programs\Visual_Studio\С#\Neuro\WindowsForms_4\WindowsFormsApp4\LSTM_C++\ConsoleApplication1\Neuron.cpp(1223,20): warning C4018: <: несоответствие типов со знаком и без знака
+D:\Vlasov\!Programs\Visual_Studio\С#\Neuro\WindowsForms_4\WindowsFormsApp4\LSTM_C++\ConsoleApplication1\Neuron.cpp(1294,20): warning C4018: <: несоответствие типов со знаком и без знака
+D:\Vlasov\!Programs\Visual_Studio\С#\Neuro\WindowsForms_4\WindowsFormsApp4\LSTM_C++\ConsoleApplication1\Neuron.cpp(1363,9): warning C4018: <: несоответствие типов со знаком и без знака
   ConsoleApplication1.vcxproj -> D:\Vlasov\!Programs\Visual_Studio\С#\Neuro\WindowsForms_4\WindowsFormsApp4\LSTM_C++\ConsoleApplication1\Debug\ConsoleApplication1.exe

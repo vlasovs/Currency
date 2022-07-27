@@ -156,6 +156,7 @@ void conjugate_gradient(double dropout, int tcount, int ts)
 	double* delta = new double[tt];
 	double* enter = new double[4];
 	double* ans = new double[1];
+	//nn->ApplyDropout(dropout);
 	for (int t = 0; t < tcount; t++) {
 		nn->FreeDelta();
 		nn->ApplyDropout(dropout);
@@ -168,7 +169,8 @@ void conjugate_gradient(double dropout, int tcount, int ts)
 			int index = x[i];
 			nn->Clear();
 			size = tests[index].size() - 1;
-			for (int k = 0; k < tests[index].size() / 4; k++) {
+			int tc = tests[index].size() / 4;
+			for (int k = 0; k < tc; k++) {
 				//for (int k = 0; k < look_back; k++) {
 				for (int j = 0; j < 4; j++) {
 					enter[j] = tests[index][k * 4 + j];
@@ -177,7 +179,7 @@ void conjugate_gradient(double dropout, int tcount, int ts)
 			}
 			ans[0] = tests[index][size];
 			delta[i] = ans[0];
-			delta[i] -= nn->GetAnswer()[0];
+			delta[i] -= nn->GetAnswer(tc - 1)[0];
 			nn->ClearDeltaSigma();
 			//nn->Backpropagation(delta + i, nn->ExtractLayer(nn->LayersCount() - 1)->GetEntersCount() - 1, 0);
 			nn->CalcNumericalDelta(tests[index], ans, Alpha);
@@ -248,6 +250,7 @@ void Levenberg_Marquardt(double dropout, int Iteration, int tests_)
 	double* Delta = new double[k];
 	double* vect1;
 	CreateMatrix(vect1, 1, tests_);
+	//nn->ApplyDropout(dropout);
 	for (int t = 0; t < Iteration; t++) {
 		nn->ApplyDropout(dropout);
 		k = Amount - nn->DropCount();
@@ -261,14 +264,15 @@ void Levenberg_Marquardt(double dropout, int Iteration, int tests_)
 			int index = x[i];
 			nn->Clear();
 			size = tests[index].size() - 1;
-			for (int p = 0; p < tests[index].size() / 4; p++) {
+			int tc = tests[index].size() / 4;
+			for (int p = 0; p < tc; p++) {
 				//for (int k = 0; k < look_back; k++) {
 				for (int j = 0; j < 4; j++) {
 					enter[j] = tests[index][p * 4 + j];
 				}
 				nn->Execute(enter);
 			}
-			double r = nn->GetAnswer()[0];
+			double r = nn->GetAnswer(tc - 1)[0];
 			ans[i] = tests[index][size] - r;
 			//nn->GetGradient(Jacobi,i*k);
 			nn->ClearDeltaSigma();
