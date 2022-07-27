@@ -10,6 +10,73 @@ namespace WindowsFormsApp1
 {
     class help_func
     {
+        public static void shuffle(ref int[] arr)
+        {
+            Random r = new Random();
+            for (int i = arr.Count() - 1; i >= 1; i--)
+            {
+                int j = r.Next() % (i + 1);
+                int tmp = arr[j];
+                arr[j] = arr[i];
+                arr[i] = tmp;
+            }
+        }
+        public static void conjugate_gradient(NN nn, List<List<double>> tests, double dropout, int tcount, int ts)
+        {            
+            //int size = 4 * look_back;
+            double Alpha = 1.0 / 3.0;
+            double Step = 0.001;
+            int tt = tests.Count();
+            if (ts > tt)
+            {
+                ts = tt;
+            }
+            double[] delta = new double[tt];
+            double[] enter = new double[4];
+            double[] ans = new double[1];
+            //nn->ApplyDropout(dropout);
+            for (int t = 0; t < tcount; t++)
+            {
+                nn.FreeDelta();
+                nn.ApplyDropout(dropout);
+                int[] x=new int[tt];
+                for (int i = 0; i < tt; i++)
+                {
+                    x[i] = i;
+                }
+                shuffle(ref x);
+                for (int i = 0; i < tt; i++)
+                {
+                    int index = x[i];
+                    nn.Clear();
+                    int size = tests[index].Count() - 1;
+                    int tc = tests[index].Count() / 4;
+                    for (int k = 0; k < tc; k++)
+                    {
+                        //for (int k = 0; k < look_back; k++) {
+                        for (int j = 0; j < 4; j++)
+                        {
+                            enter[j] = tests[index][k * 4 + j];
+                        }
+                        nn.Execute(enter);
+                    }
+                    ans[0] = tests[index][size];
+                    delta[i] = ans[0];
+                    delta[i] -= nn.GetAnswer(tc - 1)[0];
+                    nn.ClearDeltaSigma();
+                    //nn->Backpropagation(delta + i, nn->ExtractLayer(nn->LayersCount() - 1)->GetEntersCount() - 1, 0);
+                    nn.CalcNumericalDelta(tests[index], ans, Alpha);
+                    nn.CalcDelta(Alpha);
+                    nn.AplyError(Step);
+                }
+                //cout << NormL2_(delta, tt) << "\n" << NormC_(delta, tt) << "\n" << (t + 1) << " \n" << " \n";
+            }            
+        }
+        //---------------------------------------------------------------------------
+
+
+
+
         public static double SigmaFunc(double Sigma)
         {
             if (Sigma > Math.Log(1.0E300))
@@ -86,33 +153,41 @@ namespace WindowsFormsApp1
         protected int ExitCount;
         protected int Amount;
         protected double[] w;
+        protected bool[] Dropout;
         protected double[] DeltaW;
-        protected double[] DeltaSigma;
-        protected double[] Enter;
-        protected double[] Out;
+        protected List<double[]> wDeltaSigma;
+        protected List<double[]> Enters;
+        protected List<double[]> Outs;
         protected Layer next;
         protected Layer prev;
         protected string name;
+        protected double pd;
+        protected int dropcount;
+        public static int flag = -33000000;
 
         public Layer()
         {
             r = new Random();
             w = null;
             DeltaW = null;
-            DeltaSigma = null;
-            Enter = null;
-            Out = null;
+            wDeltaSigma = new List<double[]>();
+            Enters = new List<double[]>();
+            Outs = new List<double[]>();
             name = "Layer";
             next = null;
             prev = null;
+            Amount = 0;
+            EnterCount = 0;
         }
+
         public string GetName()
         {
             return name;
         }
+
         public virtual void SetCoeff(double val, int i)
         {
-            this.w[i] = val;
+            w[i] = val;
         }
 
         public virtual double GetCoeff(int i)
@@ -129,30 +204,38 @@ namespace WindowsFormsApp1
         {
             return DeltaW[count];
         }
+
         public void SetNeighbors(Layer next, Layer prev)
         {
             this.next = next;
             this.prev = prev;
         }
-
-        public void SetEnter(double[] enter)
+        public virtual void SetEnter(double[] enter)
         {
-            for (int k = 0; k < EnterCount; k++)
+            if (enter != null)
             {
-                Enter[k] = enter[k];
+                double[] Enter = new double[EnterCount];
+                for (int k = 0; k < EnterCount; k++)
+                {
+                    Enter[k] = enter[k];
+                }
+                Enters.Add(Enter);
+                double[] Out = new double[ExitCount];
+                for (int k = 0; k < ExitCount; k++)
+                {
+                    Out[k] = 0;
+                }
+                Outs.Add(Out);
             }
+            double[] DeltaSigma = new double[ExitCount];
+            for (int i = 0; i < ExitCount; i++)
+            {
+                DeltaSigma[i] = 0;
+            }
+            wDeltaSigma.Add(DeltaSigma);
         }
 
-        public void SetEnter(double[] enter, int count)
-        {
-            EnterCount = count;
-            Enter = new double[count];
-            for (int k = 0; k < count; k++)
-            {
-                Enter[k] = enter[k];
-            }
-        }
-        public virtual int GetCoeffAmount()
+        public int GetCoeffAmount()
         {
             return Amount;
         }
@@ -172,7 +255,7 @@ namespace WindowsFormsApp1
             return ExitCount;
         }
 
-        public void Fill(int flag, double Amplitude = 1.0)
+        public void Fill(int flag, double Amplitude)
         {
             for (int k = 0; k < Amount; k++)
             {
@@ -188,19 +271,22 @@ namespace WindowsFormsApp1
                 SetCoeff(f, k);
             }
         }
-        public double[] GetAnswer()
+
+        public double[] GetAnswer(int stage)
         {
-            return Out;
+            return Outs[stage];
         }
 
-        public double[] GetDeltaSigma()
+        public virtual double[] GetDeltaSigma(int stage)
         {
-            return DeltaSigma;
+            return wDeltaSigma[stage];
         }
+
         public double[] GetDelta()
         {
             return DeltaW;
         }
+
         public virtual void FreeDelta()
         {
             if (DeltaW != null)
@@ -208,13 +294,6 @@ namespace WindowsFormsApp1
                 for (int k = 0; k < Amount; k++)
                 {
                     DeltaW[k] = 0;
-                }
-            }
-            if (DeltaSigma != null)
-            {
-                for (int k = 0; k < NeuronCount; k++)
-                {
-                    DeltaSigma[k] = 0;
                 }
             }
         }
@@ -238,47 +317,88 @@ namespace WindowsFormsApp1
             }
         }
 
-        public virtual void GetLayerInfo(ref int n, ref int m, ref double[] array)
+        public virtual void GetLayerInfo(out int n, out int m, out double[] array)
         {
             array = w;
             n = ExitCount;
             m = Amount / n;
         }
+        public virtual void ApplyDropout(double x)
+        {
+            int amount = GetCoeffAmount();
+            int c = 0;
+            for (int i = 0; i < amount; i++)
+            {
+                double r1 = r.NextDouble();
+                if (r1 < x)
+                {
+                    Dropout[i] = true;
+                    c++;
+                }
+                else
+                {
+                    Dropout[i] = false;
+                }
+            }
+            pd = (double)c / amount;
+            dropcount = c;
 
-        public virtual void SetEnterCount(int EnterCount, int NeuronCount, int ExitCount) { }
+        }
+
+        public virtual int DropCount()
+        {
+            return dropcount;
+        }
+
+        public virtual bool IsDrop(int count)
+        {
+            return Dropout[count];
+        }
+        public int GetEntersCount()
+        {
+            return Enters.Count();
+        }
+
+        public virtual void Clear()
+        {            
+            Enters = new List<double[]>();
+            Outs = new List<double[]>();
+            wDeltaSigma = new List<double[]>();            
+        }
+        public virtual void ClearDeltaSigma() { }
+        public virtual void SetEnterCount(int EnterCount, int NeuronCount, int ExitCount) {
+            Enters = new List<double[]>();
+            Outs = new List<double[]>();
+        }
         public virtual void Execute(double[] Enter) { }
-        public virtual void CalcDeltaSigma(double[] ds, int stage, int exit = -1) { }
+        public virtual double[] Backpropagation(double[] ds, int stage, int last_stage, int exit = -33000000) => null;
         public virtual void GetGradient(double[] Gradient, int offset) { }
         public virtual void CalcDelta(double Alpha) { }
-        public virtual void Clear() { }
-        public virtual void ClearDeltaSigma() { }
     }
-    class Dense : Layer
-    {
+    class Dense : Layer {
 
-        public Dense() : base()
-        {
-            this.name = "Dense";
+        public Dense() : base() {
+            name = "Dense";
         }
 
         public override void SetEnterCount(int EnterCount, int NeuronCount, int ExitCount)
-        {
+        {            
             this.EnterCount = EnterCount;
             this.NeuronCount = NeuronCount;
             this.ExitCount = ExitCount;
+            this.wDeltaSigma = new List<double[]>();
 
             Amount = NeuronCount * (EnterCount + 1);
             int a = Amount;
-            Enter = new double[EnterCount];
             w = new double[a];
+            Dropout = new bool[a];
             DeltaW = new double[a];
-            Out = new double[ExitCount];
-            DeltaSigma = new double[ExitCount];
+            Enters = new List<double[]>();
+            Outs = new List<double[]>();
         }
 
         public override void Execute(double[] Enter)
         {
-            int count = Enter.Count();
             SetEnter(Enter);
             int count1 = 0;
             for (int i = 0; i < NeuronCount; i++)
@@ -286,20 +406,33 @@ namespace WindowsFormsApp1
                 double sum = 0;
                 for (int e = 0; e < EnterCount; e++)
                 {
-                    sum += this.Enter[e] * w[count1++];
+                    if (!Dropout[count1])
+                    {
+                        sum += Enter[e] * w[count1++] / (1 - pd);
+                    }
+                    else
+                    {
+                        count1++;
+                    }
                 }
-                sum += w[count1++];
-                Out[i] = sum;
+                if (!Dropout[count1])
+                {
+                    sum += w[count1++] / (1 - pd);
+                }
+                else
+                {
+                    count1++;
+                }
+                Outs.Last()[i] = sum;
             }
             if (next != null)
             {
-                next.Execute(Out);
+                next.Execute(Outs.Last());
             }
         }
 
-        public override void CalcDeltaSigma(double[] ds, int stage, int exit)
+        public override double[] Backpropagation(double[] ds, int stage, int last_stage, int exit)
         {
-
             for (int e = 0; e < NeuronCount; e++)
             {
                 double sum = 0;
@@ -308,32 +441,40 @@ namespace WindowsFormsApp1
                 {
                     dfo *= ds[e];
                 }
-                sum = dfo;//NeuronCount
-                if (exit == -1)
+                sum = dfo; //NeuronCount
+                if (exit == flag)
                 {
-                    DeltaSigma[e] += sum;
+                    wDeltaSigma[stage][e] += sum;
                 }
                 else
                 {
-                    DeltaSigma[e] += e == exit ? sum : 0;
+                    wDeltaSigma[stage][e] += e == exit ? sum : 0;
                 }
             }
-
+            double[] ds2 = new double[EnterCount];
+            for (int k = 0; k < EnterCount; k++)
+            {
+                ds2[k] = 0;
+                for (int n = 0; n < NeuronCount; n++)
+                {
+                    double fs = wDeltaSigma[stage][n];
+                    double s = 0;
+                    if (!Dropout[n * (EnterCount + 1) + k])
+                    {
+                        s = fs * w[n * (EnterCount + 1) + k] / (1 - pd);
+                    }
+                    ds2[k] += s;
+                }
+            }
             if (prev != null)
             {
-                double[] ds2 = new double[EnterCount];
-                for (int k = 0; k < EnterCount; k++)
-                {
-                    ds2[k] = 0;
-                    for (int n = 0; n < NeuronCount; n++)
-                    {
-                        double fs = DeltaSigma[n];
-                        double s = fs * w[n * (EnterCount + 1) + k];
-                        ds2[k] += s;
-                    }
-                }
-                prev.CalcDeltaSigma(ds2, 0);
+                ds = prev.Backpropagation(ds2, stage, last_stage);
             }
+            else
+            {
+                ds = ds2;
+            }
+            return ds;
         }
 
         public override void GetGradient(double[] Gradient, int offset)
@@ -342,15 +483,35 @@ namespace WindowsFormsApp1
             {
                 Gradient[offset + i] = 0;
             }
-            for (int i = 0; i < NeuronCount; i++)
+            for (int s = 0; s < wDeltaSigma.Count(); s++)
             {
-                double dfo = 0;
-                dfo = DeltaSigma[i];
-                for (int l = 0; l < EnterCount; l++)
+                for (int i = 0; i < NeuronCount; i++)
                 {
-                    Gradient[offset + i * (EnterCount + 1) + l] = Enter[l] * dfo;
+                    double dfo = 0;
+                    dfo = wDeltaSigma[s][i];
+                    for (int l = 0; l < EnterCount; l++)
+                    {
+                        int t1 = i * (EnterCount + 1) + l;
+                        //			if (!Dropout[t]) {
+                        Gradient[offset + t1] += Enters[s][l] * dfo;
+                        //			}
+                    }
+                    int t2 = i * (EnterCount + 1) + EnterCount;
+                    //		if (!Dropout[t]) {
+                    Gradient[offset + t2] += dfo;
+                    //		}
                 }
-                Gradient[offset + i * (EnterCount + 1) + EnterCount] = dfo;
+            }
+            for (int i = 0; i < Amount; i++)
+            {
+                if (Dropout[i])
+                {
+                    Gradient[offset + i] = 0;
+                }
+                else
+                {
+                    Gradient[offset + i] /= 1 - pd;
+                }
             }
         }
 
@@ -359,76 +520,101 @@ namespace WindowsFormsApp1
             int count = 0;
             for (int i = 0; i < NeuronCount; i++)
             {
-                double dfo = DeltaSigma[i];
                 for (int l = 0; l < EnterCount; l++)
                 {
-                    DeltaW[count] = Alpha * (DeltaW[count]) + Enter[l] * dfo;
+                    if (!Dropout[count])
+                    {
+                        double dfo = 0;
+                        for (int s = 0; s < wDeltaSigma.Count(); s++)
+                        {
+                            dfo += Enters[s][l] * wDeltaSigma[s][i];
+                        }
+                        DeltaW[count] = Alpha * (DeltaW[count]) + dfo;
+                    }
                     count++;
                 }
-                DeltaW[count] = Alpha * (DeltaW[count]) + dfo;
+                if (!Dropout[count])
+                {
+                    double dfo = 0;
+                    for (int s = 0; s < wDeltaSigma.Count(); s++)
+                    {
+                        dfo += wDeltaSigma[s][i];
+                    }
+                    DeltaW[count] = Alpha * (DeltaW[count]) + dfo;
+                }
                 count++;
             }
         }
 
-        public override void Clear()
-        {
-            //Nothing
-        }
         public override void ClearDeltaSigma()
         {
-            for (int i = 0; i < NeuronCount; i++)
+            for (int s = 0; s < wDeltaSigma.Count(); s++)
             {
-                DeltaSigma[i] = 0;
+                for (int i = 0; i < NeuronCount; i++)
+                {
+                    wDeltaSigma[s][i] = 0;
+                }
             }
         }
     }
 
-    class DenseSoftmax : Dense
-    {
-        public DenseSoftmax() : base()
-        {
+    class DenseSoftmax : Dense {
+        public DenseSoftmax() : base() {
             name = "DenseSoftmax";
         }
+
         public override void Execute(double[] Enter)
         {
-            int count = Enter.Count();
             SetEnter(Enter);
             int count1 = 0;
             double sum1 = 0;
             for (int i = 0; i < NeuronCount; i++)
             {
-                //count1=0;
                 double sum2 = 0;
                 for (int e = 0; e < EnterCount; e++)
                 {
-                    sum2 += this.Enter[e] * w[count1++];
+                    if (!Dropout[count1])
+                    {
+                        sum2 += Enter[e] * w[count1++] / (1 - pd);
+                    }
+                    else
+                    {
+                        count1++;
+                    }
                 }
-                sum2 += w[count1++];
-                Out[i] = Math.Exp(sum2);
-                sum1 += Out[i];
+                if (!Dropout[count1])
+                {
+                    sum2 += w[count1++] / (1 - pd);
+                }
+                else
+                {
+                    count1++;
+                }
+                Outs.Last()[i] = Math.Exp(sum2);
+                sum1 += Outs.Last()[i];
             }
             for (int i = 0; i < NeuronCount; i++)
             {
-                Out[i] /= sum1;
+                Outs.Last()[i] /= sum1;
             }
             if (next != null)
             {
-                next.Execute(Out);
+                next.Execute(Outs.Last());
             }
         }
 
-        public override void CalcDeltaSigma(double[] ds, int stage, int exit = -1)
+        public override double[] Backpropagation(double[] ds, int stage, int last_stage, int exit = -33000000)
         {
             for (int e = 0; e < NeuronCount; e++)
             {
                 double sum = 0;
                 double dfo;
-                if (ds != null && exit == -1)
+                if (ds != null && exit == flag)
                 {
                     for (int q = 0; q < NeuronCount; q++)
                     {
                         double r = (e == q ? 1 : 0);
-                        dfo = Out[q] * (r - Out[e]);
+                        dfo = Outs[stage][q] * (r - Outs[stage][e]);
                         dfo *= ds[q];
                         sum += dfo;//NeuronCount;
                     }
@@ -436,40 +622,50 @@ namespace WindowsFormsApp1
                 else
                 {
                     double r = e == exit ? 1 : 0;
-                    dfo = Out[exit] * (r - Out[e]);
+                    dfo = Outs[stage][exit] * (r - Outs[stage][e]);
                     sum += dfo;
                 }
-                DeltaSigma[e] += sum;
+                wDeltaSigma[stage][e] += sum;
             }
+
+            double[] ds2 = new double[EnterCount];
+            for (int k = 0; k < EnterCount; k++)
+            {
+                ds2[k] = 0;
+                for (int n = 0; n < NeuronCount; n++)
+                {
+                    double fs = wDeltaSigma[stage][n];
+                    double s = 0;
+                    if (!Dropout[n * (EnterCount + 1) + k])
+                    {
+                        s = fs * w[n * (EnterCount + 1) + k] / (1 - pd);
+                    }
+                    ds2[k] += s;
+                }
+            }
+
             if (prev != null)
             {
-                double[] ds2 = new double[EnterCount];
-                for (int k = 0; k < EnterCount; k++)
-                {
-                    ds2[k] = 0;
-                    for (int n = 0; n < NeuronCount; n++)
-                    {
-                        double fs = DeltaSigma[n];
-                        double s = fs * w[n * (EnterCount + 1) + k];
-                        ds2[k] += s;
-                    }
-                }
-                prev.CalcDeltaSigma(ds2, 0);
+                ds = prev.Backpropagation(ds2, stage, last_stage);
             }
+            else
+            {
+                ds = ds2;
+            }
+
+            return ds;
         }
     }
-
     /********************************************************************/
 
     class DenseSigmoid : Dense
     {
-        public DenseSigmoid() : base()
-        {
+        public DenseSigmoid() : base() {
             name = "DenseSigmoid";
         }
+
         public override void Execute(double[] Enter)
         {
-            int count = Enter.Count();
             SetEnter(Enter);
             int count1 = 0;
             for (int i = 0; i < NeuronCount; i++)
@@ -477,93 +673,155 @@ namespace WindowsFormsApp1
                 double sum2 = 0;
                 for (int e = 0; e < EnterCount; e++)
                 {
-                    sum2 += this.Enter[e] * w[count1++];
+                    if (!Dropout[count1])
+                    {
+                        sum2 += Enter[e] * w[count1++] / (1 - pd);
+                    }
+                    else
+                    {
+                        count1++;
+                    }
                 }
-                sum2 += w[count1++];
-                Out[i] = help_func.SigmaFunc(sum2);
+                if (!Dropout[count1])
+                {
+                    sum2 += w[count1++] / (1 - pd);
+                }
+                else
+                {
+                    count1++;
+                }
+                Outs.Last()[i] = help_func.SigmaFunc(sum2);
             }
             if (next != null)
             {
-                next.Execute(Out);
+                next.Execute(Outs.Last());
             }
         }
 
-        public override void CalcDeltaSigma(double[] ds, int stage, int exit)
+        public override double[] Backpropagation(double[] ds, int stage, int last_stage, int exit = -33000000)
         {
+            //int e=exit;
             for (int e = 0; e < NeuronCount; e++)
             {
-                double dfo = Out[e] * (1 - Out[e]);
+                double sum = 0;
+                double dfo = Outs[stage][e] * (1 - Outs[stage][e]);
                 if (ds != null)
                 {
                     dfo *= ds[e];
                 }
-                if (exit == -1 || exit == e)
+                if (exit == flag || exit == e)
                 {
-                    DeltaSigma[e] = dfo;
+                    wDeltaSigma[stage][e] = dfo;
                 }
                 else
                 {
-                    DeltaSigma[e] = 0;
+                    wDeltaSigma[stage][e] = 0;
                 }
             }
+
+            double[] ds2 = new double[EnterCount];
+            for (int k = 0; k < EnterCount; k++)
+            {
+                ds2[k] = 0;
+                for (int n = 0; n < NeuronCount; n++)
+                {
+                    double fs = wDeltaSigma[stage][n];
+                    double s = 0;
+                    if (!Dropout[n * (EnterCount + 1) + k])
+                    {
+                        s = fs * w[n * (EnterCount + 1) + k] / (1 - pd);
+                    }
+                    ds2[k] += s;
+                }
+            }
+
             if (prev != null)
             {
-                double[] ds2 = new double[EnterCount];
-                for (int k = 0; k < EnterCount; k++)
-                {
-                    ds2[k] = 0;
-                    for (int n = 0; n < NeuronCount; n++)
-                    {
-                        double fs = DeltaSigma[n];
-                        double s = fs * w[n * (EnterCount + 1) + k];
-                        ds2[k] += s;
-                    }
-                }
-                prev.CalcDeltaSigma(ds2, 0);
+                ds = prev.Backpropagation(ds2, stage, last_stage);
             }
+            else
+            {
+                ds = ds2;
+            }
+
+            return ds;
         }
+
+        /********************************************************************/
     }
 
-    /********************************************************************/
+    class LSTM : Layer {
 
-    class LSTM : Layer
-    {
         protected int CoeffCount;
-
         protected List<double[]> Stack;
         protected List<double[]>[] Sigma;
-        protected List<double[]>[] DeltaSigmas;
         protected List<double>[] Pipe;
+        protected List<double[]>[] DeltaSigmas;
         protected double[] Exit;
         protected double[] C;
 
-        public LSTM() : base()
-        {
+        protected double[] c1;
+        protected double[] de;
+        protected double[] dc;
+        protected double[] prevf;
+
+        public LSTM() : base() {
             name = "LSTM";
-            Stack = new List<double[]>();
             Exit = null;
             C = null;
+            c1 = null;
+            de = null;
+            dc = null;
+            prevf = null;
         }
+
         public override void Clear()
         {
-            while (Stack.Count > 0)
-            {
-                for (int i = 0; i < ExitCount; i++)
-                {
-                    Sigma[i].RemoveAt(Sigma[i].Count - 1);
-                    DeltaSigmas[i].RemoveAt(DeltaSigmas[i].Count - 1);
-                    Pipe[i].RemoveAt(Pipe[i].Count - 1);
-                }
-                Stack.RemoveAt(Stack.Count - 1);
-            }
+            Enters = new List<double[]>();
+            Outs = new List<double[]>();
+            Amount = 4 * CoeffCount * ExitCount;
+            int a = Amount;
+            DeltaW = new double[a];
+            Stack = new List<double[]>();
+            Sigma = new List<double[]>[ExitCount];
+            DeltaSigmas = new List<double[]>[ExitCount];
+            Pipe = new List<double>[ExitCount];
+            Exit = new double[ExitCount];
+            C = new double[ExitCount];
             for (int i = 0; i < ExitCount; i++)
             {
+                Sigma[i] = new List<double[]>();
+                DeltaSigmas[i] = new List<double[]>();
+                Pipe[i] = new List<double>();
                 Exit[i] = 0;
                 C[i] = 0;
             }
+            c1 = new double[ExitCount];
+            de = new double[ExitCount];
+            dc = new double[ExitCount];
+            prevf = new double[ExitCount];
         }
+
+        public override void SetEnter(double[] enter)
+        {
+            double[] Enter = new double[EnterCount];
+            for (int k = 0; k < EnterCount; k++)
+            {
+                Enter[k] = enter[k];
+            }
+            Enters.Add(Enter);
+            double[] Out = new double[ExitCount];
+            for (int k = 0; k < ExitCount; k++)
+            {
+                Out[k] = 0;
+            }
+            Outs.Add(Out);
+        }
+
         public override void SetEnterCount(int EnterC, int NeuronCount, int ExitCount)
         {
+            Enters = new List<double[]>();
+            Outs = new List<double[]>();
             this.ExitCount = ExitCount;
             EnterCount = EnterC;
             CoeffCount = (ExitCount / NeuronCount + EnterC + 1);
@@ -571,23 +829,29 @@ namespace WindowsFormsApp1
             Amount = 4 * CoeffCount * ExitCount;
             int a = Amount;
             w = new double[a];
+            Dropout = new bool[a];
             DeltaW = new double[a];
-            DeltaSigma = new double[ExitCount];
+            Stack = new List<double[]>();            
             Sigma = new List<double[]>[ExitCount];
             DeltaSigmas = new List<double[]>[ExitCount];
             Pipe = new List<double>[ExitCount];
+            Exit = new double[ExitCount];
+            C = new double[ExitCount];
             for (int i = 0; i < ExitCount; i++)
             {
                 Sigma[i] = new List<double[]>();
                 DeltaSigmas[i] = new List<double[]>();
                 Pipe[i] = new List<double>();
-            }
-            Exit = new double[ExitCount];
-            C = new double[ExitCount];
-            Enter = new double[EnterCount];
-            Out = new double[ExitCount];
+                Exit[i] = 0;
+                C[i] = 0;
+            }            
+            c1 = new double[ExitCount];
+            de = new double[ExitCount];
+            dc = new double[ExitCount];
+            prevf = new double[ExitCount];
         }
-        public void NewStage()
+
+        protected void NewStage()
         {
             Stack.Add(new double[ExitCount + EnterCount]);
             for (int j = 0; j < ExitCount; j++)
@@ -598,15 +862,21 @@ namespace WindowsFormsApp1
             {
                 Sigma[i].Add(new double[4]);
                 DeltaSigmas[i].Add(new double[4]);
+                for (int j = 0; j < 4; j++)
+                {
+                    Sigma[i].Last()[j] = 0;
+                    DeltaSigmas[i].Last()[j] = 0;
+                }
                 Pipe[i].Add(C[i]);
             }
         }
+
         public override void Execute(double[] Enter)
         {
-            int count = Enter.Count();
+            SetEnter(Enter);
             NewStage();
             int count1 = 0;
-            int cur = Stack.Count - 1;
+            int cur = Stack.Count() - 1;
             for (int k = 0; k < EnterCount; k++)
             {
                 Stack[cur][k + ExitCount] = Enter[k];
@@ -622,16 +892,39 @@ namespace WindowsFormsApp1
                     {
                         int p = group * tcount + j;
                         double e = this.Stack[cur][p];
-                        double ww = w[count1++];
+                        double ww = 0;
+                        if (!Dropout[count1])
+                        {
+                            ww = w[count1++] / (1 - pd);
+                        }
+                        else
+                        {
+                            count1++;
+                        }
                         sum += ww * e;
                     }
                     for (int j = 0; j < EnterCount; j++)
                     {
                         double e = this.Stack[cur][ExitCount + j];
-                        double ww = w[count1++];
+                        double ww = 0;
+                        if (!Dropout[count1])
+                        {
+                            ww = w[count1++] / (1 - pd);
+                        }
+                        else
+                        {
+                            count1++;
+                        }
                         sum += ww * e;
                     }
-                    sum += w[count1++];
+                    if (!Dropout[count1])
+                    {
+                        sum += w[count1++] / (1 - pd);
+                    }
+                    else
+                    {
+                        count1++;
+                    }
                     Sigma[i][cur][k] = sum;
                 }
                 double[] ss = Sigma[i][cur];
@@ -652,35 +945,43 @@ namespace WindowsFormsApp1
             }
             for (int i = 0; i < ExitCount; i++)
             {
-                Out[i] = Exit[i];
+                Outs.Last()[i] = Exit[i];
             }
             if (next != null)
             {
-                next.Execute(Out);
+                next.Execute(Outs.Last());
             }
         }
-        public override void CalcDeltaSigma(double[] ds, int stage, int exit)
+
+        public override double[] Backpropagation(double[] ds, int stage, int last_stage, int exit)
         {
             int count = ExitCount / NeuronCount;
-            double[] c1 = new double[ExitCount];
-            double[] de = new double[ExitCount];
-            double[] dc = new double[ExitCount];
-            double[] prevf = new double[ExitCount];
-            for (int l = 0; l < ExitCount; l++)
+            if (stage == Stack.Count() - 1)
             {
-                c1[l] = C[l];
-                if (ds != null)
+                for (int l = 0; l < ExitCount; l++)
                 {
-                    de[l] = ds[l];
+                    c1[l] = C[l];
+                    if (ds != null)
+                    {
+                        de[l] = ds[l];
+                    }
+                    else
+                    {
+                        de[l] = 1;
+                    }
+                    dc[l] = 0;
+                    prevf[l] = 0;
                 }
-                else
-                {
-                    de[l] = 1;
-                }
-                dc[l] = 0;
-                prevf[l] = 0;
             }
-            for (int i = Stack.Count - 1; i >= 0; i--)
+            else if (stage == last_stage)
+            {
+                for (int l = 0; l < ExitCount; l++)
+                {
+                    de[l] += ds[l];
+                }
+            }
+
+            for (int i = stage; i >= last_stage; i--)
             {
                 for (int l = 0; l < ExitCount; l++)
                 {
@@ -718,7 +1019,11 @@ namespace WindowsFormsApp1
                         for (int k = 0; k < 4; k++)
                         {
                             int r = group * count + l;
-                            de[p] += DeltaSigmas[r][i][k] * w[(4 * r + k) * CoeffCount + number];
+                            int t = (4 * r + k) * CoeffCount + number;
+                            if (!Dropout[t])
+                            {
+                                de[p] += DeltaSigmas[r][i][k] * w[t] / (1 - pd);
+                            }
                         }
                     }
                 }
@@ -726,8 +1031,9 @@ namespace WindowsFormsApp1
             if (prev != null)
             {
                 double[] ds2 = new double[EnterCount];
-                int c = Stack.Count - 1;
-                for (int i = c; i >= 0; i--)
+                int c = stage;
+                //int i = c;
+                for (int i = c; i >= last_stage; i--)
                 {
                     for (int e = 0; e < EnterCount; e++)
                     {
@@ -737,14 +1043,20 @@ namespace WindowsFormsApp1
                             for (int k = 0; k < 4; k++)
                             {
                                 double dss = DeltaSigmas[l][i][k];
-                                ds2[e] += dss * w[(4 * l + k) * CoeffCount + e + count];
+                                int t = (4 * l + k) * CoeffCount + e + count;
+                                if (!Dropout[t])
+                                {
+                                    ds2[e] += dss * w[t] / (1 - pd);
+                                }
                             }
                         }
                     }
-                    prev.CalcDeltaSigma(ds2, i);
+                    prev.Backpropagation(ds2, i, i);
                 }
             }
+            return null;
         }
+
         public override void GetGradient(double[] Gradient, int offset)
         {
             for (int i = 0; i < Amount; i++)
@@ -756,7 +1068,7 @@ namespace WindowsFormsApp1
             {
                 double ds1, e;
                 int group = l / tcount;
-                for (int n = 0; n < Stack.Count; n++)
+                for (int n = 0; n < Stack.Count(); n++)
                 {
                     for (int k = 0; k < 4; k++)
                     {
@@ -767,22 +1079,42 @@ namespace WindowsFormsApp1
                             int p = group * tcount + j;
                             e = Stack[n][p];
                             ed = e * ds1;
-                            Gradient[offset + (4 * l + k) * CoeffCount + j] += ed;
+                            int t1 = (4 * l + k) * CoeffCount + j;
+                            //					if (!Dropout[t]) {
+                            Gradient[offset + t1] += ed;
+                            //					}
                         }
                         for (int i = 0; i < EnterCount; i++)
                         {
                             e = Stack[n][ExitCount + i];
                             ed = e * ds1;
-                            Gradient[offset + (4 * l + k) * CoeffCount + tcount + i] += ed;
+                            int t1 = (4 * l + k) * CoeffCount + tcount + i;
+                            //					if (!Dropout[t]) {
+                            Gradient[offset + t1] += ed;
+                            //					}
                         }
-                        Gradient[offset + (4 * l + k + 1) * CoeffCount - 1] += ds1;
+                        int t = (4 * l + k + 1) * CoeffCount - 1;
+                        //				if (!Dropout[t]) {
+                        Gradient[offset + t] += ds1;
+                        //				}
                     }
                 }
             }
+            for (int i = 0; i < Amount; i++)
+            {
+                if (Dropout[i])
+                {
+                    Gradient[offset + i] = 0;
+                }
+                else
+                {
+                    Gradient[offset + i] /= 1 - pd;
+                }
+            }
         }
+
         public override void CalcDelta(double Alpha)
         {
-            int index;
             double[] Gradient = new double[Amount];
             for (int i = 0; i < Amount; i++)
             {
@@ -791,14 +1123,18 @@ namespace WindowsFormsApp1
             GetGradient(Gradient, 0);
             for (int k = 0; k < Amount; k++)
             {
-                DeltaW[k] = Alpha * DeltaW[k] + Gradient[k];
+                if (!Dropout[k])
+                {
+                    DeltaW[k] = Alpha * DeltaW[k] + Gradient[k];
+                }
             }
         }
+
         public override void ClearDeltaSigma()
         {
             for (int l = 0; l < ExitCount; l++)
             {
-                for (int i = 0; i < Stack.Count; i++)
+                for (int i = 0; i < Stack.Count(); i++)
                 {
                     for (int k = 0; k < 4; k++)
                     {
@@ -808,6 +1144,8 @@ namespace WindowsFormsApp1
             }
         }
     }
+    /********************************************************************/
+    // Embedding
 
     class Embedding : Layer
     {
@@ -815,87 +1153,180 @@ namespace WindowsFormsApp1
         {
             name = "Embedding";
         }
+
         public override void SetEnterCount(int EnterC, int NeuronC, int ExitC)
         {
             EnterCount = EnterC;
             NeuronCount = NeuronC;
             ExitCount = ExitC;
-            Enter = new double[1];
+            //Enter = new double[1];
             int a = Amount = NeuronCount * ExitCount;
             w = new double[a];
+            Dropout = new bool[a];
             DeltaW = new double[a];
-            DeltaSigma = new double[a];
-            Out = new double[ExitCount];
+            //DeltaSigma = new double[a];
+            //Out = new double[ExitCount];
         }
+
         public override void Execute(double[] Enter)
         {
-            int count = Enter.Count();
-            SetEnter(Enter, count);
+            SetEnter(Enter);
             for (int e = 0; e < EnterCount; e++)
             {
                 for (int i = 0; i < ExitCount; i++)
                 {
-                    Out[i] = w[(int)Enter[e] * ExitCount + i];
+                    int t = (int)Enter[e] * ExitCount + i;
+                    if (Dropout[t])
+                    {
+                        Outs.Last()[i] = 0;
+                    }
+                    else
+                    {
+                        Outs.Last()[i] = w[t] / (1 - pd);
+                    }
                 }
                 if (next != null)
                 {
-                    next.Execute(Out);
+                    next.Execute(Outs.Last());
                 }
             }
         }
-        public override void CalcDeltaSigma(double[] ds, int stage, int exit)
+
+        public override double[] Backpropagation(double[] ds, int stage, int last_stage, int exit)
         {
-            for (int i = 0; i < ExitCount; i++)
+            for (int e = 0; e < EnterCount; e++)
             {
-                DeltaSigma[(int)Enter[stage] * ExitCount + i] += ds[i];
+                for (int i = 0; i < ExitCount; i++)
+                {
+                    int t = (int)Enters[stage][e] * ExitCount + i;
+                    if (!Dropout[t])
+                    {
+                        wDeltaSigma[stage][t] += ds[i];
+                    }
+                }
             }
+            return null;
         }
+
         public override void GetGradient(double[] Gradient, int offset)
         {
             for (int i = 0; i < Amount; i++)
             {
-                double dfo = DeltaSigma[i];
-                Gradient[offset + i] = dfo;
+                for (int s = 0; s < wDeltaSigma.Count(); s++)
+                {
+                    double dfo = wDeltaSigma[s][i];
+                    if (!Dropout[i])
+                    {
+                        Gradient[offset + i] += dfo;
+                    }
+                }
             }
         }
+
         public override void CalcDelta(double Alpha)
         {
             for (int i = 0; i < Amount; i++)
             {
-                double dfo = DeltaSigma[i];
-                DeltaW[i] = Alpha * (DeltaW[i]) + dfo;
+                double dfo = 0;
+                for (int s = 0; s < wDeltaSigma.Count(); s++)
+                {
+                    dfo += wDeltaSigma[s][i];
+                }
+                if (!Dropout[i])
+                {
+                    DeltaW[i] = Alpha * (DeltaW[i]) + dfo;
+                }
             }
         }
+
         public override void ClearDeltaSigma()
         {
             for (int i = 0; i < Amount; i++)
             {
-                DeltaSigma[i] = 0;
+                for (int s = 0; s < wDeltaSigma.Count(); s++)
+                {
+                    wDeltaSigma[s][i] = 0;
+                }
             }
         }
-        public override void GetLayerInfo(ref int n, ref int m, ref double[] array)
+
+        public override void GetLayerInfo(out int n, out int m, out double[] array)
         {
             array = w;
             n = NeuronCount;
             m = Amount / n;
         }
     }
+    // Adder
 
-    // NN - Neural_Net
+    class Adder : Layer {
+        protected int offset;
+        protected int count;
 
-    class NN : Layer
-    {
-        double[] g;
-        double[] v;
-        double[] m;
-        List<Layer> layers;
-        public NN() : base()
+        public void SetCount(int Count)
         {
-            name = "NN";
-            layers = new List<Layer>();
+            EnterCount = Count;
+            NeuronCount = Count;
+            ExitCount = Count;
+            Amount = Count;
         }
 
-        private int FindIndex(ref int count)
+        public void SetOffset(int offset, int count)
+        {
+            this.offset = offset;
+            this.count = count;
+        }
+
+        public override double[] Backpropagation(double[] ds, int stage, int last_stage, int exit = -33000000)
+        {
+            for (int i = 0; i < count; i++)
+            {
+                wDeltaSigma[stage][i + offset] += ds[i];
+            }
+            return null;
+        }
+        public override double[] GetDeltaSigma(int stage)
+        {
+            return wDeltaSigma[stage];
+        }
+    }
+
+    // Flatten
+    class Flatten : Layer {
+
+        protected Adder a;
+        protected double[] g;
+        protected double[] v;
+        protected double[] m;
+        protected List<Layer> layers;
+
+        public Flatten() : base() {
+            name = "Flatten";
+            layers = new List<Layer>();
+            a = new Adder();
+        }
+
+        public override void SetEnter(double[] enter)
+        {
+            if (enter != null)
+            {
+                double[] Enter = new double[EnterCount];
+                for (int k = 0; k < EnterCount; k++)
+                {
+                    Enter[k] = enter[k];
+                }
+                Enters.Add(Enter);
+                double[] Out = new double[ExitCount];
+                for (int k = 0; k < ExitCount; k++)
+                {
+                    Out[k] = 0;
+                }
+
+                Outs.Add(Out);
+            }
+        }
+
+        public int FindIndex(ref int count)
         {
             int a = layers[0].GetCoeffAmount();
             int i = 0;
@@ -907,16 +1338,19 @@ namespace WindowsFormsApp1
             }
             return i;
         }
+
         public override void SetCoeff(double val, int count)
         {
             int i = FindIndex(ref count);
             layers[i].SetCoeff(val, count);
         }
+
         public override double GetCoeff(int count)
         {
             int i = FindIndex(ref count);
             return layers[i].GetCoeff(count);
         }
+
         public override void SetDelta(double val, int count)
         {
             int i = FindIndex(ref count);
@@ -928,185 +1362,195 @@ namespace WindowsFormsApp1
             int i = FindIndex(ref count);
             return layers[i].GetDelta(count);
         }
-        public void Load(string FileName)
-        {
-            int ec1 = 0, nc1 = 0, xc1 = 0;
-            bool first = true;
-            if (File.Exists(FileName))
-            {
-                layers.Clear();
-
-                string[] alltext = File.ReadAllLines(FileName);
-
-                int line = 0;
-
-                while (line < alltext.Length)
-                {
-                    string text = alltext[line++];
-                    Layer l;
-                    if (text == "Embedding")
-                    {
-                        l = new Embedding();
-                    }
-                    else if (text == "LSTM")
-                    {
-                        l = new LSTM();
-                    }
-                    else if (text == "DenseSoftmax")
-                    {
-                        l = new DenseSoftmax();
-                    }
-                    else if (text == "DenseSigmoid")
-                    {
-                        l = new DenseSigmoid();
-                    }
-                    else if (text == "Dense")
-                    {
-                        l = new Dense();
-                    }
-                    else
-                    {
-                        break;
-                    }
-
-                    int ec, nc, xc;
-                    ec = int.Parse(alltext[line++]);
-                    nc = int.Parse(alltext[line++]);
-                    xc = int.Parse(alltext[line++]);
-                    l.SetEnterCount(ec, nc, xc);
-                    if (first)
-                    {
-                        ec1 = ec;
-                        nc1 = nc;
-                        first = false;
-                    }
-                    xc1 = xc;
-                    string s = alltext[line++];
-                    help_func.SwapComma(ref s);
-                    for (int r = 0; r < l.GetCoeffAmount(); r++)
-                    {
-                        string word = help_func.ReadWord(ref s);
-                        double we = double.Parse(word);
-                        l.SetCoeff(we, r);
-                    }
-                    layers.Add(l);
-                }
-            }
-            SetEnterCount(ec1, nc1, xc1);
-            int ls = layers.Count;
-            for (int i = 0; i < ls; i++)
-            {
-                Layer next = null;
-                Layer prev = null;
-                if (i > 0)
-                {
-                    prev = layers[i - 1];
-                }
-                if (i < layers.Count - 1)
-                {
-                    next = layers[i + 1];
-                }
-                layers[i].SetNeighbors(next, prev);
-            }
-        }
-
-        public void Save(string FileName)
-        {
-            var sb = new StringBuilder();
-
-            for (int i = 0; i < layers.Count; i++)
-            {
-                sb.AppendLine(layers[i].GetName());
-                sb.AppendLine(layers[i].GetEnterCount().ToString());
-                sb.AppendLine(layers[i].GetNeuronCount().ToString());
-                sb.AppendLine(layers[i].GetExitCount().ToString());
-
-                int Amount = layers[i].GetCoeffAmount();
-
-                for (int k = 0; k < Amount; k++)
-                {
-                    sb.Append(layers[i].GetCoeff(k).ToString());
-                    sb.Append(" ");
-                }
-                sb.Append("\n");
-            }
-            File.WriteAllText(FileName, sb.ToString());
-        }
-
-        public override int GetCoeffAmount()
-        {
-            return Amount;
-        }
 
         public override void Clear()
         {
-            for (int i = 0; i < layers.Count; i++)
+            for(int i=0; i < LayersCount(); i++)
             {
                 layers[i].Clear();
             }
+            wDeltaSigma = new List<double[]>();
+            Enters = new List<double[]>();
+            Outs = new List<double[]>();
+            a.Clear();           
         }
+
         public override void SetEnterCount(int EnterCount, int NeuronCount, int ExitCount)
         {
+            wDeltaSigma = new List<double[]>();
+            Enters = new List<double[]>();
+            Outs = new List<double[]>();
             this.ExitCount = ExitCount;
             this.EnterCount = EnterCount;
             this.NeuronCount = NeuronCount;
-            w = new double[1];
+            w = null;
             DeltaW = null;
-            DeltaSigma = new double[NeuronCount];
-            Enter = new double[EnterCount];
-            Out = new double[ExitCount];
-            int a = 0;
-            for (int i = 0; i < layers.Count; i++)
+            //DeltaSigma = new double[NeuronCount];
+            //Enter = 0;
+            //Out = new double[ExitCount];
+            int am = 0;
+            for (int i = 0; i < layers.Count(); i++)
             {
-                a += layers[i].GetCoeffAmount();
+                am += layers[i].GetCoeffAmount();
             }
-            Amount = a;
-            g = new double[a];
-            v = new double[a];
-            m = new double[a];
+            Amount = am;
+            g = new double[am];
+            v = new double[am];
+            m = new double[am];
+            a.SetCount(EnterCount);
         }
-
         public override void Execute(double[] Enter)
         {
-
-            layers[0].Execute(Enter);
-            int last = layers.Count - 1;
-            int s = layers[last].GetNeuronCount();
-            for (int i = 0; i < s; i++)
+            a.SetEnter(null);
+            SetEnter(Enter);
+            int size = layers.Count();
+            int count_e = 0;
+            int count_x = 0;
+            for (int i = 0; i < size; i++)
             {
-                double ex = layers[last].GetAnswer()[i];
-                Out[i] = ex;
+                int ec = layers[i].GetEnterCount();
+                int xc = layers[i].GetExitCount();
+                double[] tmp = new double[ec];
+                for (int k = 0; k < ec; k++)
+                    tmp[k] = Enter[k + count_e];                
+                layers[i].Execute(tmp);
+                int lc = layers[i].GetEntersCount();
+                for (int j = 0; j < xc; j++)
+                {
+                    double ex = layers[i].GetAnswer(lc - 1)[j];
+                    Outs.Last()[j + count_x] = ex;
+                }
+                count_e += ec;
+                count_x += xc;
+            }
+            if (next != null)
+            {
+                next.Execute(Outs.Last());
             }
         }
 
-        public override void CalcDeltaSigma(double[] ds, int stage, int exit)
+        public override double[] Backpropagation(double[] ds, int stage, int last_stage, int exit = -33000000)
         {
-            ClearDeltaSigma();
-            int s = layers.Count - 1;
-            layers[s].CalcDeltaSigma(ds, 0, exit);
+            //ClearDeltaSigma();
+            double[] tmp;
+            int s = layers.Count();
+            int count_e = 0;
+            int count_p = 0;
+
+            for (int i = 0; i < s; i++)
+            {
+                int e = layers[i].GetEnterCount();
+                int p = layers[i].GetExitCount();
+                a.SetOffset(count_e, e);
+                layers[i].SetNeighbors(null, a);
+                double[] ds1 = null;
+                if (ds != null)
+                {
+                    ds1 = new double[p];
+                    for (int k = 0; k < p; k++)
+                        ds1[k] = ds[k + count_p];
+                }
+                if (exit == flag)
+                    layers[i].Backpropagation(ds1, stage, stage);
+                else
+                    layers[i].Backpropagation(ds1, stage, stage, exit - count_p);
+                count_p += p;
+                count_e += e;
+            }
+
+            if (stage == 0 && prev != null)
+            {
+                int c = GetEntersCount() - 1;
+                for (int s1 = c; s1 >= 0; s1--)
+                {
+                    double max = 0;
+                    for (int i = 0; i < EnterCount; i++)
+                    {
+                        if (max < Math.Abs(a.GetDeltaSigma(s1)[i]))
+                        {
+                            max = Math.Abs(a.GetDeltaSigma(s1)[i]);
+                        }
+                    }
+                    if (max > 0)
+                    {
+                        prev.Backpropagation(a.GetDeltaSigma(s1), s1, s1);
+                    }
+                }
+            }
+            return null;
+        }
+
+        public override int DropCount()
+        {
+            int dc = 0;
+            for (int i = 0; i < layers.Count(); i++)
+            {
+                dc += layers[i].DropCount();
+            }
+            return dc;
         }
 
         public override void GetGradient(double[] Gradient, int offset)
         {
-            int count = 0;
-            int s = layers.Count;
+            int s = layers.Count();
             for (int i = 0; i < s; i++)
             {
                 layers[i].GetGradient(Gradient, offset);
                 offset += layers[i].GetCoeffAmount();
             }
         }
+
+        public void GetGradientWithout(double[] Gradient, int offset)
+        {
+            int a = GetCoeffAmount();
+            double[] gr = new double[a];
+            GetGradient(gr, 0);
+            int s = layers.Count();
+            int k = 0;
+            int o = 0;
+            for (int i = 0; i < s; i++)
+            {
+                int p = layers[i].GetCoeffAmount();
+                for (int j = 0; j < p; j++)
+                {
+                    if (!layers[i].IsDrop(j))
+                    {
+                        Gradient[offset + k] = gr[o + j];
+                        k++;
+                    }
+                }
+                o += p;
+            }
+        }
+
+        public void SetDifferenceWithout(double[] Delta)
+        {
+            int p = GetCoeffAmount() - DropCount();
+            for (int i = Amount - 1; i >= 0; i--)
+            {
+                if (!IsDrop(i))
+                {
+                    SetDelta(Delta[--p], i);
+                }
+                else
+                {
+                    SetDelta(0, i);
+                }
+            }
+        }
+
         public override void CalcDelta(double Alpha)
         {
-            int s = layers.Count;
+            int s = layers.Count();
             for (int i = 0; i < s; i++)
             {
                 layers[i].CalcDelta(Alpha);
             }
         }
+
         public override void FreeDelta()
         {
-            int s = layers.Count;
+            int s = layers.Count();
             for (int i = 0; i < s; i++)
             {
                 layers[i].FreeDelta();
@@ -1121,25 +1565,327 @@ namespace WindowsFormsApp1
 
         public override void ClearDeltaSigma()
         {
-            int s = layers.Count;
+            int s = layers.Count();
             for (int i = 0; i < s; i++)
             {
                 layers[i].ClearDeltaSigma();
             }
+            for (int s1 = 0; s < wDeltaSigma.Count(); s++)
+            {
+                for (int i = 0; i < EnterCount; i++)
+                {
+                    wDeltaSigma[s1][i] = 0;
+                }
+            }
+            a.ClearDeltaSigma();
+        }
+
+        public override void ApplyDropout(double x)
+        {
+            int s = layers.Count();
+            for (int i = 0; i < s; i++)
+            {
+                layers[i].ApplyDropout(x);
+            }
+        }
+
+        public override bool IsDrop(int count)
+        {
+            int i = FindIndex(ref count);
+            return layers[i].IsDrop(count);
+        }
+
+        public void GetInfo(int layer, out int n, out int m, out double[] array)
+        {
+            layers[layer].GetLayerInfo(out n, out m, out array);
+        }
+
+        public Layer ExtractLayer(int i)
+        {
+            return layers[i];
+        }
+
+        public void AddLayer(Layer l)
+        {
+            layers.Add(l);
+        }
+
+        public int LayersCount()
+        {
+            return layers.Count();
+        }
+
+        public virtual void Linking(Layer next, Layer prev)
+        {
+            int lsize = this.layers.Count();
+            for (int i = 0; i < lsize; i++)
+            {
+                this.layers[i].SetNeighbors(null, null);
+            }
+        }
+    }
+
+    class NN : Flatten {
+        public NN() : base() {
+            name = "NN";
+        }
+
+        public override void Linking(Layer next, Layer prev)
+        {
+            int lsize = this.layers.Count();
+            for (int i = 0; i < lsize; i++)
+            {
+                Layer next1 = next;
+                Layer prev1 = prev;
+                if (i > 0)
+                {
+                    prev1 = layers[i - 1];
+                }
+                if (i < layers.Count() - 1)
+                {
+                    next1 = layers[i + 1];
+                }
+                this.layers[i].SetNeighbors(next1, prev1);
+            }
+        }
+        public void Load(string FileName)
+        {
+            int ec1 = 0, nc1 = 0, xc1 = 0;
+            bool first = true;
+            Stack<Flatten> ls = new Stack<Flatten>();
+            ls.Push((Flatten)this);
+            Stack<int> sec = new Stack<int>();
+            Stack<int> snc = new Stack<int>();
+            Stack<int> sxc = new Stack<int>();
+            Layer prev = null;
+            layers = new List<Layer>();
+            if (File.Exists(FileName))
+            {
+                // Read entire text file content in one string    
+                string[] text = File.ReadAllLines(FileName);
+                int line = 0;
+                while (line < text.Count() && text[line].Length < 1) line++;
+                do
+                {
+                    Layer l;
+                    if (text[line] == "Embedding")
+                    {
+                        l = new Embedding();
+                    }
+                    else if (text[line] == "LSTM")
+                    {
+                        l = new LSTM();
+                    }
+                    else if (text[line] == "DenseSoftmax")
+                    {
+                        l = new DenseSoftmax();
+                    }
+                    else if (text[line] == "DenseSigmoid")
+                    {
+                        l = new DenseSigmoid();
+                    }
+                    else if (text[line] == "Dense")
+                    {
+                        l = new Dense();
+                    }
+                    else if (text[line] == "Flatten")
+                    {
+                        ls.Push(new Flatten());
+                        l = ls.Peek();
+                    }
+                    else if (text[line] == "Exit")
+                    {
+                        Flatten f = ls.Pop();
+                        f.SetEnterCount(sec.Pop(), snc.Pop(), sxc.Pop());
+                        ls.Peek().AddLayer(f);
+                        line++;
+                        continue;
+                    }
+                    else
+                    {
+                        break;
+                    }
+                    line++;
+
+                    int ec, nc, xc;
+                    //string text1, s, word;
+                    //std::getline(f, text);
+                    ec = int.Parse(text[line]); line++;
+                    //std::getline(f, text);
+                    nc = int.Parse(text[line]); line++;
+                    //std::getline(f, text);
+                    xc = int.Parse(text[line]); line++;
+                    if (first)
+                    {
+                        ec1 = ec;
+                        nc1 = nc;
+                        first = false;
+                    }
+                    xc1 = xc;
+                    if (l.GetName() == "Flatten")
+                    {
+                        sec.Push(ec);
+                        snc.Push(nc);
+                        sxc.Push(xc);
+                        continue;
+                    }
+                    l.SetEnterCount(ec, nc, xc);
+                    string s1 = text[line]; line++;
+                    help_func.SwapComma(ref s1);
+                    int count1 = l.GetCoeffAmount();
+                    for (int r = 0; r < count1; r++)
+                    {
+                        string word = help_func.ReadWord(ref s1);
+                        try
+                        {
+                            double we = double.Parse(word);
+                            l.SetCoeff(we, r);
+                        } catch (Exception exept){
+                            break;
+                        }
+                    }
+                    ls.Peek().AddLayer(l);
+                    prev = l;
+                    while (line < text.Count() && text[line].Length < 1) line++;
+                } while (line < text.Count());
+                SetEnterCount(ec1, nc1, xc1);
+                Linking(null, null);
+            }
+        }
+
+        public void Save(string FileName)
+        {
+            using (System.IO.StreamWriter file =
+            new System.IO.StreamWriter(FileName, false))
+            {
+                Stack<Flatten> ls = new Stack<Flatten>();
+                Stack<int> index = new Stack<int>();
+                ls.Push(this);
+                int i = 0;
+                while (ls.Count() > 0)
+                {
+                    Flatten f = ls.Peek();
+                    Layer l = f.ExtractLayer(i);
+                    file.WriteLine(l.GetName());
+                    file.WriteLine(l.GetEnterCount());
+                    file.WriteLine(l.GetNeuronCount());
+                    file.WriteLine(l.GetExitCount());
+                    if (l.GetName() == "Flatten")
+                    {
+                        index.Push(i);
+                        ls.Push((Flatten)l);
+                        i = 0;
+                        continue;
+                    }
+                    int Amount = l.GetCoeffAmount();
+                    for (int k = 0; k < Amount; k++)
+                    {
+                        file.Write(l.GetCoeff(k));
+                        file.Write(" ");
+                    }
+                    file.WriteLine();
+                    i++;
+                    while (i >= ls.Peek().LayersCount())
+                    {
+                        ls.Pop();
+                        if (ls.Count() == 0) break;
+                        file.WriteLine("Exit");
+                        i = index.Pop() + 1;
+                    }
+                }
+            }
+        }
+
+        public void GetNumericalGradient(List<double> tests, double[] Gradient, int offset)
+        {
+            double delta = 1.0E-6;
+            double[] enter = new double[20];
+            double[] Gr = new double[Amount];
+            //int ec=EnterCount;
+            Clear();
+            int tc = tests.Count() / 4;
+            for (int k = 0; k < tc; k++)
+            {
+                //for (int k = 0; k < look_back; k++) {
+                for (int j = 0; j < 4; j++)
+                {
+                    enter[j] = tests[k * 4 + j];
+                }
+                Execute(enter);
+            }
+            Backpropagation(null, tc - 1, 0, 0);
+            GetGradient(Gr, 0);
+            for (int i = 0; i < Amount; i++)
+            {
+                double derivative;
+                double ww = GetCoeff(i);
+                SetCoeff(ww - delta, i);
+                Clear();
+                for (int k = 0; k < tc; k++)
+                {
+                    //for (int k = 0; k < look_back; k++) {
+                    for (int j = 0; j < 4; j++)
+                    {
+                        enter[j] = tests[k * 4 + j];
+                    }
+                    Execute(enter);
+                }
+                double r1 = GetAnswer(tc - 1)[0];
+                SetCoeff(ww + delta, i);
+                Clear();
+                for (int k = 0; k < tc; k++)
+                {
+                    //for (int k = 0; k < look_back; k++) {
+                    for (int j = 0; j < 4; j++)
+                    {
+                        enter[j] = tests[k * 4 + j];
+                    }
+                    Execute(enter);
+                }
+                double r2 = GetAnswer(tc - 1)[0];
+                derivative = (r2 - r1) / (2 * delta);
+                SetCoeff(ww, i);
+                Gradient[offset + i] = derivative;
+                if (Math.Abs(derivative - Gr[i]) > 1.0E-7)
+                {
+                    double d = derivative;
+                    double r = Gr[i];
+                    double tmp = r / d;
+                    d -= r;
+                }
+            }
+            double sum = 0;
+            for (int i = 0; i < Amount; i++)
+            {
+                double d = Gradient[offset + i];
+                d -= Gr[i];
+                sum += Math.Abs(d);
+            }
+        }
+        public void CalcNumericalDelta(List<double> tests, double[] r, double Alpha)
+        {
+            double[] Gradient = new double[Amount];
+            for (int i = 0; i < Amount; i++)
+            {
+                Gradient[i] = 0;
+            }
+            GetNumericalGradient(tests, Gradient, 0);
+            for (int k = 0; k < Amount; k++)
+            {
+                double kof = GetDelta(k);
+                kof = kof * Alpha + Gradient[k] * r[0];
+                SetDelta(kof, k);
+            }            
         }
 
         public void AdaMax(int n, double beta1, double beta2)
         {
-            int s = layers.Count;
+            int s = layers.Count();
             for (int i = 0; i < s; i++)
             {
                 layers[i].CalcDelta(0);
             }
             int fc = Amount;
-
-            //double beta1=0.9l;
-            //double beta2=0.999l;
-            double epsilon = 1E-8;
 
             double gmax = 0;
             for (int k = 0; k < fc; k++)
@@ -1161,9 +1907,31 @@ namespace WindowsFormsApp1
             }
         }
 
+        public override void Execute(double[] Enter)
+        {
+            SetEnter(Enter);
+            layers[0].Execute(Enter);
+            int last = layers.Count() - 1;
+            //int s = layers[last]->GetNeuronCount();
+            int ec = GetEntersCount();
+            int xc = GetExitCount();
+            for (int i = 0; i < xc; i++)
+            {
+                double ex = layers[last].GetAnswer(ec - 1)[i];
+                Outs.Last()[i] = ex;
+            }
+        }
+
+        public override double[] Backpropagation(double[] ds, int stage, int last_stage, int exit=-33000000)
+        {
+            int s = layers.Count() - 1;
+            layers[s].Backpropagation(ds, stage, last_stage, exit);
+            return null;
+        }
+
         public void Adam(int n, double beta1, double beta2)
         {
-            int s = layers.Count;
+            int s = layers.Count();
             for (int i = 0; i < s; i++)
             {
                 layers[i].CalcDelta(0);
@@ -1183,7 +1951,6 @@ namespace WindowsFormsApp1
             // Adam
             for (int k = 0; k < fc; k++)
             {
-
                 m[k] = beta1 * m[k] + (1 - beta1) * g[k];
                 v[k] = beta2 * v[k] + (1 - beta2) * g[k] * g[k];
                 double m_;
@@ -1193,11 +1960,6 @@ namespace WindowsFormsApp1
                 double delta = m_ / (Math.Sqrt(v_) + epsilon);
                 SetDelta(delta, k);
             }
-        }
-
-        public void GetInfo(int layer, ref int n, ref int m, ref double[] array)
-        {
-            layers[layer].GetLayerInfo(ref n, ref m, ref array);
         }
     }
 
@@ -1213,7 +1975,6 @@ namespace WindowsFormsApp1
             s = s.Substring(k + 1, s.Length - k - 1);
             return Result;
         }
-
         public TNeuroNet(String FileName)
         {
 
@@ -1640,6 +2401,7 @@ namespace WindowsFormsApp1
         private double[] Enter;
 
     };
+
     class LSTM1
     {
         public int EnterCount;
@@ -1780,8 +2542,7 @@ namespace WindowsFormsApp1
         public void Clear()
         {
             Enter.Clear();
-            DeltaSigma.Clear();
-            Enter.Clear();
+            DeltaSigma.Clear();            
             Sigma.Clear();
             DeltaSigma.Clear();
             DeltaPipe.Clear();

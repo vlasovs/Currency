@@ -52,10 +52,7 @@ void SwapComma(wstring& s);
 		virtual void Execute(double* Enter) = 0;
 		virtual double* Backpropagation(double* ds, int stage, int last_stage, int exit = flag) = 0;
 		virtual void GetGradient(double* Gradient, int offset) = 0;
-		virtual void CalcDelta(double Alpha) = 0;				
-		//virtual int PrevisionCount(void);
-		//virtual void GetPrevisionInfo(double* v, int offset);
-		//virtual void SetPrevisionInfo(double* v, int offset);
+		virtual void CalcDelta(double Alpha) = 0;
 	protected:
 		int EnterCount;
 		int NeuronCount;

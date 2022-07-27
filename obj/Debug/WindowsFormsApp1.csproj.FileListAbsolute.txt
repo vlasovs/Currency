@@ -86,12 +86,6 @@ D:\Vlasov\!Programs\Visual_Studio\С#\Neuro\WindowsForms_4\WindowsFormsApp3\obj\
 D:\Vlasov\!Programs\Visual_Studio\С#\Neuro\WindowsForms_4\WindowsFormsApp3\obj\Debug\WindowsFormsApp1.csproj.CopyComplete
 D:\Vlasov\!Programs\Visual_Studio\С#\Neuro\WindowsForms_4\WindowsFormsApp3\obj\Debug\WindowsFormsApp1.exe
 D:\Vlasov\!Programs\Visual_Studio\С#\Neuro\WindowsForms_4\WindowsFormsApp3\obj\Debug\WindowsFormsApp1.pdb
-D:\Vlasov\!Programs\Visual_Studio\С#\Neuro\WindowsForms_4\WindowsFormsApp4\obj\Debug\WindowsFormsApp1.Form1.resources
-D:\Vlasov\!Programs\Visual_Studio\С#\Neuro\WindowsForms_4\WindowsFormsApp4\obj\Debug\WindowsFormsApp1.Properties.Resources.resources
-D:\Vlasov\!Programs\Visual_Studio\С#\Neuro\WindowsForms_4\WindowsFormsApp4\obj\Debug\WindowsFormsApp1.csproj.GenerateResource.cache
-D:\Vlasov\!Programs\Visual_Studio\С#\Neuro\WindowsForms_4\WindowsFormsApp4\obj\Debug\WindowsFormsApp1.csproj.CoreCompileInputs.cache
-D:\Vlasov\!Programs\Visual_Studio\С#\Neuro\WindowsForms_4\WindowsFormsApp4\obj\Debug\WindowsFormsApp1.exe
-D:\Vlasov\!Programs\Visual_Studio\С#\Neuro\WindowsForms_4\WindowsFormsApp4\obj\Debug\WindowsFormsApp1.pdb
 D:\Vlasov\!Programs\Visual_Studio\С#\Neuro\WindowsForms_4\WindowsFormsApp4\bin\Debug\WindowsFormsApp1.exe.config
 D:\Vlasov\!Programs\Visual_Studio\С#\Neuro\WindowsForms_4\WindowsFormsApp4\bin\Debug\WindowsFormsApp1.exe
 D:\Vlasov\!Programs\Visual_Studio\С#\Neuro\WindowsForms_4\WindowsFormsApp4\bin\Debug\WindowsFormsApp1.pdb
@@ -103,5 +97,11 @@ D:\Vlasov\!Programs\Visual_Studio\С#\Neuro\WindowsForms_4\WindowsFormsApp4\bin\
 D:\Vlasov\!Programs\Visual_Studio\С#\Neuro\WindowsForms_4\WindowsFormsApp4\bin\Debug\Microsoft.Bcl.AsyncInterfaces.xml
 D:\Vlasov\!Programs\Visual_Studio\С#\Neuro\WindowsForms_4\WindowsFormsApp4\bin\Debug\System.Runtime.CompilerServices.Unsafe.xml
 D:\Vlasov\!Programs\Visual_Studio\С#\Neuro\WindowsForms_4\WindowsFormsApp4\bin\Debug\System.Threading.Tasks.Extensions.xml
-D:\Vlasov\!Programs\Visual_Studio\С#\Neuro\WindowsForms_4\WindowsFormsApp4\obj\Debug\WindowsFormsApp1.csproj.AssemblyReference.cache
+D:\Vlasov\!Programs\Visual_Studio\С#\Neuro\WindowsForms_4\WindowsFormsApp4\obj\Debug\WindowsFormsApp1.Form1.resources
+D:\Vlasov\!Programs\Visual_Studio\С#\Neuro\WindowsForms_4\WindowsFormsApp4\obj\Debug\WindowsFormsApp1.Properties.Resources.resources
+D:\Vlasov\!Programs\Visual_Studio\С#\Neuro\WindowsForms_4\WindowsFormsApp4\obj\Debug\WindowsFormsApp1.csproj.GenerateResource.cache
+D:\Vlasov\!Programs\Visual_Studio\С#\Neuro\WindowsForms_4\WindowsFormsApp4\obj\Debug\WindowsFormsApp1.csproj.CoreCompileInputs.cache
 D:\Vlasov\!Programs\Visual_Studio\С#\Neuro\WindowsForms_4\WindowsFormsApp4\obj\Debug\WindowsFormsApp1.csproj.CopyComplete
+D:\Vlasov\!Programs\Visual_Studio\С#\Neuro\WindowsForms_4\WindowsFormsApp4\obj\Debug\WindowsFormsApp1.exe
+D:\Vlasov\!Programs\Visual_Studio\С#\Neuro\WindowsForms_4\WindowsFormsApp4\obj\Debug\WindowsFormsApp1.pdb
+D:\Vlasov\!Programs\Visual_Studio\С#\Neuro\WindowsForms_4\WindowsFormsApp4\obj\Debug\WindowsFormsApp1.csproj.AssemblyReference.cache

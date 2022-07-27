@@ -130,8 +130,8 @@ void Layer::SetEnter(const double* enter) {
 		}
 		Outs.push_back(Out);		
 	}
-	double* DeltaSigma = new double[Amount];
-	for (int i = 0; i < Amount; i++) {
+	double* DeltaSigma = new double[ExitCount];
+	for (int i = 0; i < ExitCount; i++) {
 		DeltaSigma[i] = 0;
 	}
 	wDeltaSigma.push_back(DeltaSigma);	
@@ -506,7 +506,7 @@ double* DenseSoftmax::Backpropagation(double* ds, int stage, int last_stage, int
 	}
 
 	if (prev) {		
-		ds = Backpropagation(ds2, stage, last_stage);
+		ds = prev->Backpropagation(ds2, stage, last_stage);
 		delete[] ds2;
 		ds2 = 0;
 	}
@@ -606,7 +606,7 @@ LSTM::~LSTM(void) {
 	}
 }
 
-void LSTM::Clear() {
+void LSTM::Clear(void) {
 	while (!Stack.empty()) {
 		for (int i = 0; i < ExitCount; i++) {
 			delete[] Sigma[i].back();

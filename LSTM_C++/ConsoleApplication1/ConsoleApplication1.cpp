@@ -362,7 +362,7 @@ int main()
 	int tc = 105;
 	loadTests(tc);
 	//loadTests(105);
-	conjugate_gradient(0, 10000, tc);
+	conjugate_gradient(0.1, 10000, tc);
 	//Levenberg_Marquardt(0, 100, 100000);
 	//saveNN();
     std::cout << "Hello World!\n";

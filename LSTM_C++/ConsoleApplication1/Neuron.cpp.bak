@@ -1,4 +1,4 @@
-// ---------------------------------------------------------------------------
+//---------------------------------------------------------------------------
 #pragma hdrstop
 
 #include "Neuron.h"
@@ -107,8 +107,7 @@ Layer::~Layer(void) {
 	if (EnterCount) {
 		delete[] w;
 		delete[] Dropout;
-		delete[] DeltaW;
-		delete[] Out;
+		delete[] DeltaW;		
 		Clear();
 	}
 }
@@ -125,6 +124,11 @@ void Layer::SetEnter(const double* enter) {
 			Enter[k] = enter[k];
 		}
 		Enters.push_back(Enter);
+		double* Out = new double[ExitCount];
+		for (int k = 0; k < ExitCount; k++) {
+			Out[k] = 0;
+		}
+		Outs.push_back(Out);		
 	}
 	double* DeltaSigma = new double[Amount];
 	for (int i = 0; i < Amount; i++) {
@@ -164,8 +168,8 @@ void Layer::Fill(int flag, double Amplitude) {
 	}
 }
 
-double* Layer::GetAnswer(void) {
-	return Out;
+double* Layer::GetAnswer(int stage) {
+	return Outs[stage];
 }
 
 double* Layer::GetDeltaSigma(int stage) {
@@ -243,6 +247,10 @@ void Layer::Clear(void) {
 		delete[] Enters.back();
 		Enters.pop_back();			
 	}
+	while (!Outs.empty()) {
+		delete[] Outs.back();
+		Outs.pop_back();
+	}
 	while (!wDeltaSigma.empty()) {
 		delete[] wDeltaSigma.back();
 		wDeltaSigma.pop_back();
@@ -298,7 +306,7 @@ void Dense::SetEnterCount(int EnterCount, int NeuronCount, int ExitCount) {
 	w = new double[a];
 	Dropout = new bool[a];
 	DeltaW = new double[a];
-	Out = new double[ExitCount];
+	//Out = new double[ExitCount];
 	//DeltaSigma = new double[ExitCount];
 }
 
@@ -309,7 +317,7 @@ void Dense::Execute(double* Enter) {
 		double sum = 0;
 		for (int e = 0; e < EnterCount; e++) {
 			if (!Dropout[count1]) {
-				sum += this->Enters.back()[e] * w[count1++] / (1 - pd);
+				sum += Enter[e] * w[count1++] / (1 - pd);
 			}
 			else {
 				count1++;
@@ -321,10 +329,10 @@ void Dense::Execute(double* Enter) {
 		else {
 			count1++;
 		}
-		Out[i] = sum;
+		Outs.back()[i] = sum;
 	}
 	if (next) {
-		next->Execute(Out);
+		next->Execute(Outs.back());
 	}
 }
 
@@ -441,7 +449,7 @@ void DenseSoftmax::Execute(double* Enter) {
 		double sum2 = 0;
 		for (int e = 0; e < EnterCount; e++) {
 			if (!Dropout[count1]) {
-				sum2 += this->Enters.back()[e] * w[count1++] / (1 - pd);
+				sum2 += Enter[e] * w[count1++] / (1 - pd);
 			}
 			else {
 				count1++;
@@ -453,14 +461,14 @@ void DenseSoftmax::Execute(double* Enter) {
 		else {
 			count1++;
 		}
-		Out[i] = exp(sum2);
-		sum1 += Out[i];
+		Outs.back()[i] = exp(sum2);
+		sum1 += Outs.back()[i];
 	}
 	for (int i = 0; i < NeuronCount; i++) {
-		Out[i] /= sum1;
+		Outs.back()[i] /= sum1;
 	}
 	if (next) {
-		next->Execute(Out);
+		next->Execute(Outs.back());
 	}
 }
 
@@ -471,14 +479,14 @@ double* DenseSoftmax::Backpropagation(double* ds, int stage, int last_stage, int
 		if (ds && exit == flag) {
 			for (int q = 0; q < NeuronCount; q++) {
 				double r = (e == q ? 1 : 0);
-				dfo = Out[q] * (r - Out[e]);
+				dfo = Outs[stage][q] * (r - Outs[stage][e]);
 				dfo *= ds[q];
 				sum += dfo;//NeuronCount;
 			}
 		}
 		else {
 			double r = e == exit ? 1 : 0;
-			dfo = Out[exit] * (r - Out[e]);
+			dfo = Outs[stage][exit] * (r - Outs[stage][e]);
 			sum += dfo;
 		}
 		wDeltaSigma[stage][e] += sum;
@@ -498,7 +506,7 @@ double* DenseSoftmax::Backpropagation(double* ds, int stage, int last_stage, int
 	}
 
 	if (prev) {		
-		ds = Backpropagation(ds2, stage, last_stage);
+		ds = prev->Backpropagation(ds2, stage, last_stage);
 		delete[] ds2;
 		ds2 = 0;
 	}
@@ -522,7 +530,7 @@ void DenseSigmoid::Execute(double* Enter) {
 		double sum2 = 0;
 		for (int e = 0; e < EnterCount; e++) {
 			if (!Dropout[count1]) {
-				sum2 += this->Enters.back()[e] * w[count1++] / (1 - pd);
+				sum2 += Enter[e] * w[count1++] / (1 - pd);
 			}
 			else {
 				count1++;
@@ -534,10 +542,10 @@ void DenseSigmoid::Execute(double* Enter) {
 		else {
 			count1++;
 		}
-		Out[i] = SigmaFunc(sum2);
+		Outs.back()[i] = SigmaFunc(sum2);
 	}
 	if (next) {
-		next->Execute(Out);
+		next->Execute(Outs.back());
 	}
 }
 
@@ -545,7 +553,7 @@ double* DenseSigmoid::Backpropagation(double* ds, int stage, int last_stage, int
 	//int e=exit;
 	for (int e = 0; e < NeuronCount; e++) {
 		double sum = 0;
-		double dfo = Out[e] * (1 - Out[e]);
+		double dfo = Outs[stage][e] * (1 - Outs[stage][e]);
 		if (ds) {
 			dfo *= ds[e];
 		}
@@ -587,9 +595,9 @@ double* DenseSigmoid::Backpropagation(double* ds, int stage, int last_stage, int
 LSTM::LSTM(void) :Layer(), Exit(0), C(0) {
 	name = "LSTM";
 	c1 = 0;
-	de = 0;
-	dc = 0;
-	prevf = 0;
+		de = 0;
+		dc = 0;
+		prevf = 0;
 }
 
 LSTM::~LSTM(void) {
@@ -598,7 +606,7 @@ LSTM::~LSTM(void) {
 	}
 }
 
-void LSTM::Clear() {
+void LSTM::Clear(void) {
 	while (!Stack.empty()) {
 		for (int i = 0; i < ExitCount; i++) {
 			delete[] Sigma[i].back();
@@ -614,6 +622,10 @@ void LSTM::Clear() {
 		delete[] Enters.back();
 		Enters.pop_back();
 	}
+	while (!Outs.empty()) {
+		delete[] Outs.back();
+		Outs.pop_back();
+	}
 	while (!wDeltaSigma.empty()) {
 		delete[] wDeltaSigma.back();
 		wDeltaSigma.pop_back();
@@ -622,19 +634,6 @@ void LSTM::Clear() {
 		Exit[i] = 0;
 		C[i] = 0;
 	}
-
-	if (c1) {
-		delete[] c1;
-		delete[] de;
-		delete[] dc;
-		delete[] prevf;
-	}
-
-	c1 = new double[ExitCount];
-	de = new double[ExitCount];
-	dc = new double[ExitCount];
-	prevf = new double[ExitCount];
-
 }
 
 void LSTM::SetEnter(const double* enter) {
@@ -643,6 +642,11 @@ void LSTM::SetEnter(const double* enter) {
 		Enter[k] = enter[k];
 	}
 	Enters.push_back(Enter);
+	double* Out = new double[ExitCount];
+	for (int k = 0; k < ExitCount; k++) {
+		Out[k] = 0;
+	}
+	Outs.push_back(Out);
 }
 
 void LSTM::SetEnterCount(int EnterC, int NeuronCount, int ExitCount) {
@@ -661,7 +665,19 @@ void LSTM::SetEnterCount(int EnterC, int NeuronCount, int ExitCount) {
 	Pipe.resize(ExitCount);
 	Exit.resize(ExitCount);
 	C.resize(ExitCount);	
-	Out = new double[ExitCount];
+	//Outs.push_back(new double[ExitCount]);
+
+	if (c1) {
+		delete[] c1;
+		delete[] de;
+		delete[] dc;
+		delete[] prevf;
+	}
+
+	c1 = new double[ExitCount];
+	de = new double[ExitCount];
+	dc = new double[ExitCount];
+	prevf = new double[ExitCount];
 }
 
 int LSTM::NewStage(void) {
@@ -742,10 +758,10 @@ void LSTM::Execute(double* Enter) {
 		C[i] = c1;
 	}
 	for (int i = 0; i < ExitCount; i++) {
-		Out[i] = Exit[i];
+		Outs.back()[i] = Exit[i];
 	}
 	if (next) {
-		next->Execute(Out);
+		next->Execute(Outs.back());
 	}
 }
 
@@ -929,7 +945,7 @@ void Embedding::SetEnterCount(int EnterC, int NeuronC, int ExitC) {
 	Dropout = new bool[a];
 	DeltaW = new double[a];
 	//DeltaSigma = new double[a];
-	Out = new double[ExitCount];
+	//Out = new double[ExitCount];
 }
 
 void Embedding::Execute(double* Enter) {
@@ -938,14 +954,14 @@ void Embedding::Execute(double* Enter) {
 		for (int i = 0; i < ExitCount; i++) {
 			int t = (int)Enter[e] * ExitCount + i;
 			if (Dropout[t]) {
-				Out[i] = 0;
+				Outs.back()[i] = 0;
 			}
 			else {
-				Out[i] = w[t] / (1 - pd);
+				Outs.back()[i] = w[t] / (1 - pd);
 			}
 		}
 		if (next) {
-			next->Execute(Out);
+			next->Execute(Outs.back());
 		}
 	}
 }
@@ -1047,6 +1063,22 @@ Flatten::~Flatten(void) {
 	}
 }
 
+void Flatten::SetEnter(double* enter) {
+	if (enter) {
+		double* Enter = new double[EnterCount];
+		for (int k = 0; k < EnterCount; k++) {
+			Enter[k] = enter[k];
+		}
+		Enters.push_back(Enter);
+		double* Out = new double[ExitCount];
+		for (int k = 0; k < ExitCount; k++) {
+			Out[k] = 0;
+		}
+
+		Outs.push_back(Out);
+	}
+}
+
 int Flatten::FindIndex(int& count) {
 	int a = layers[0]->GetCoeffAmount();
 	int i = 0;
@@ -1090,6 +1122,10 @@ void Flatten::Clear(void) {
 		delete[] Enters.back();
 		Enters.pop_back();
 	}
+	while (!Outs.empty()) {
+		delete[] Outs.back();
+		Outs.pop_back();
+	}
 	while (!wDeltaSigma.empty()) {
 		double* r = wDeltaSigma.back();
 		delete[] r;
@@ -1106,7 +1142,7 @@ void Flatten::SetEnterCount(int EnterCount, int NeuronCount, int ExitCount) {
 	DeltaW = 0;
 	//DeltaSigma = new double[NeuronCount];
 	//Enter = 0;
-	Out = new double[ExitCount];
+	//Out = new double[ExitCount];
 	int am = 0;
 	for (int i = 0; i < layers.size(); i++) {
 		am += layers[i]->GetCoeffAmount();
@@ -1118,14 +1154,9 @@ void Flatten::SetEnterCount(int EnterCount, int NeuronCount, int ExitCount) {
 	a.SetCount(EnterCount);
 }
 
-void Flatten::Execute(double* Enter) {
-	double* DeltaSigma = new double[EnterCount];
-	for (int i = 0; i < EnterCount; i++) {
-		DeltaSigma[i] = 0;
-	}
-	wDeltaSigma.push_back(DeltaSigma);	
+void Flatten::Execute(double* Enter) {	
 	a.SetEnter(0);
-	//SetEnter(Enter);
+	SetEnter(Enter);
 	int size = layers.size();
 	int count_e = 0;
 	int count_x = 0;
@@ -1133,15 +1164,16 @@ void Flatten::Execute(double* Enter) {
 		int ec = layers[i]->GetEnterCount();
 		int xc = layers[i]->GetExitCount();
 		layers[i]->Execute(Enter + count_e);
+		int lc = layers[i]->GetEntersCount();
 		for (int j = 0; j < xc; j++) {
-			double ex = layers[i]->GetAnswer()[j];
-			Out[j + count_x] = ex;
+			double ex = layers[i]->GetAnswer(lc-1)[j];
+			Outs.back()[j + count_x] = ex;
 		}
 		count_e += ec;
 		count_x += xc;
 	}
 	if (next) {
-		next->Execute(Out);
+		next->Execute(Outs.back());
 	}
 }
 
@@ -1155,7 +1187,6 @@ double* Flatten::Backpropagation(double* ds, int stage, int last_stage, int exit
 	for (int i = 0; i < s; i++) {
 		int e = layers[i]->GetEnterCount();
 		int p = layers[i]->GetExitCount();
-
 		a.SetOffset(count_e, e);
 		layers[i]->SetNeighbors(0, &a);
 		double* ds1 = 0;
@@ -1167,26 +1198,18 @@ double* Flatten::Backpropagation(double* ds, int stage, int last_stage, int exit
 		count_p += p;
 		count_e += e;
 	}
-
-	for (int s = last_stage; s <= stage; s++)
-	{
-		double* b = a.GetDeltaSigma(stage);
-		for (int i = 0; i < EnterCount; i++) {
-			wDeltaSigma[stage][i] += b[i];
-		}
-	}
-
+	
 	if (stage == 0 && prev) {
-		int c = wDeltaSigma.size() - 1;
+		int c = GetEntersCount() - 1;
 		for (int s = c; s >= 0; s--) {
 			double max = 0;
 			for (int i = 0; i < EnterCount; i++) {
-				if (max < fabs(wDeltaSigma[s][i])) {
-					max = fabs(wDeltaSigma[s][i]);
+				if (max < fabs(a.GetDeltaSigma(s)[i])) {
+					max = fabs(a.GetDeltaSigma(s)[i]);
 				}
 			}
 			if (max > 0) {
-				double* tmp = prev->Backpropagation(wDeltaSigma[s], s, s);
+				double* tmp = prev->Backpropagation(a.GetDeltaSigma(s), s, s);
 				if (tmp)
 					delete[] tmp;
 			}
@@ -1486,42 +1509,34 @@ void NN::GetNumericalGradient(const vector<double>& tests, double* Gradient, int
 		for (int j = 0; j < 4; j++) {
 			enter[j] = tests[k * 4 + j];
 		}
-		Execute(enter);		
+		Execute(enter);
 	}
-
 	double* tmp = Backpropagation(0, tc - 1, 0, 0);
-	if (tmp) delete[] tmp;
-	/*
-	for (int k = tc - 1; k >= 0; k--) {
-		double* tmp = Backpropagation((k == tc - 1), 0, k, 0);
-		//double* tmp = Backpropagation(true, 0, layers.back()->GetEntersCount() - 1, 0);
-		if (tmp) delete[] tmp;
-	}*/
-	//ClearDeltaSigma();
-	GetGradient(Gr, 0);	
+	if (tmp) delete[] tmp;	
+	GetGradient(Gr, 0);
 	for (int i = 0; i < Amount; i++) {
 		double derivative;
 		double ww = GetCoeff(i);
 		SetCoeff(ww - delta, i);
 		Clear();
-		for (int k = 0; k < tests.size() / 4; k++) {
+		for (int k = 0; k < tc; k++) {
 			//for (int k = 0; k < look_back; k++) {
 			for (int j = 0; j < 4; j++) {
 				enter[j] = tests[k * 4 + j];
 			}
 			Execute(enter);
 		}
-		double r1 = GetAnswer()[0];
+		double r1 = GetAnswer(tc - 1)[0];
 		SetCoeff(ww + delta, i);
 		Clear();
-		for (int k = 0; k < tests.size() / 4; k++) {
+		for (int k = 0; k < tc; k++) {
 			//for (int k = 0; k < look_back; k++) {
 			for (int j = 0; j < 4; j++) {
 				enter[j] = tests[k * 4 + j];
 			}
 			Execute(enter);
 		}
-		double r2 = GetAnswer()[0];
+		double r2 = GetAnswer(tc - 1)[0];
 		derivative = (r2 - r1) / (2 * delta);
 		SetCoeff(ww, i);
 		Gradient[offset + i] = derivative;
@@ -1588,14 +1603,15 @@ void NN::AdaMax(int n, double beta1, double beta2) {
 }
 
 void NN::Execute(double* Enter) {
-	//SetEnter(Enter);
+	SetEnter(Enter);
 	layers[0]->Execute(Enter);
 	int last = layers.size() - 1;
-	//int s = layers[last]->GetNeuronCount();
-	int s = layers[last]->GetExitCount();
-	for (int i = 0; i < s; i++) {
-		double ex = layers[last]->GetAnswer()[i];
-		Out[i] = ex;
+	//int s = layers[last]->GetNeuronCount();	
+	int ec = GetEntersCount();
+	int xc = GetExitCount();
+	for (int i = 0; i < xc; i++) {
+		double ex = layers[last]->GetAnswer(ec - 1)[i];
+		Outs.back()[i] = ex;
 	}
 }
 

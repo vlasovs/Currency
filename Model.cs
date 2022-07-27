@@ -307,6 +307,22 @@ namespace WindowsFormsApp1
 
             //LSTM_Net a = new LSTM_Net("LSTM_Net.txt");
             NN a = new NN();
+
+            /*
+            List<List<double>> tests = new List<List<double>>();
+            List<double> test = new List<double>();
+            test.Add(0);
+            test.Add(1);
+            test.Add(2);
+            test.Add(3);
+            test.Add(4);
+            tests.Add(test);
+            a.Load("NN.txt");
+            a.Fill(1,2);
+            //a.Save("NN132132132132.txt");
+            help_func.conjugate_gradient(a, tests, 0, 100, 1);
+            */
+
             a.Load("NN.txt");
             a.Clear();
             for (int i = 0; i < train_size; i++)
@@ -319,7 +335,7 @@ namespace WindowsFormsApp1
                 //t[3] = (v[i][3] - min) / (max - min);
 
                 a.Execute(v[i]);
-                double p = a.GetAnswer()[0];
+                double p = a.GetAnswer(i)[0];
                 ans[i] = p; //min + p * (max - min);
 
             }
